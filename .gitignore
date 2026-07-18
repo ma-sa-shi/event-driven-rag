@@ -14,10 +14,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# CDK
-cdk/cdk.out/
-cdk.out/
-
 # Environment
 .env
 .env.*

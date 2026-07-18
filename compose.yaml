@@ -1,0 +1,24 @@
+# Verifies that the production (Lambda) backend image builds and starts as an
+# HTTP server. Day-to-day development stays native (make dev).
+# Binds :8000 — stop the native backend first. The Vite proxy targets
+# localhost:8000, so a running frontend talks to this container unchanged.
+services:
+  backend:
+    build:
+      context: apps/backend
+    image: event-driven-rag-backend
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # slim image has no curl; use the Python stdlib
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
