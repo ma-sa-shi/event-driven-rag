@@ -30,3 +30,16 @@ uv run pytest
 uv run ruff check .
 uv run ruff format .
 ```
+
+## Docker
+
+The `Dockerfile` here builds the production image deployed to the three
+Lambdas (Lambda Web Adapter included; per-function CMD/env are set in CDK).
+To verify it builds and starts locally, run from the repo root:
+
+```bash
+docker compose up --build backend
+```
+
+Serves http://localhost:8000 — stop the native dev server first (same port).
+This is only a startup check; day-to-day development stays native (`uv`).
