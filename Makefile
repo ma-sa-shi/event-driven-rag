@@ -1,4 +1,4 @@
-.PHONY: install dev dev-frontend dev-backend lint format test docker-build docker-up docker-down
+.PHONY: install dev dev-frontend dev-backend lint format test docker-build docker-build-worker docker-up docker-down
 
 install: ## Install frontend + backend dependencies
 	cd apps/frontend && npm install
@@ -26,8 +26,11 @@ format:
 test:
 	cd apps/backend && uv run pytest
 
-docker-build: ## Build the Lambda-deployable backend image
+docker-build: ## Build the Lambda-deployable backend image (web target)
 	docker compose build backend
+
+docker-build-worker: ## Build the ingest-fn (worker target) image
+	docker build --target worker -t event-driven-rag-backend-worker apps/backend
 
 docker-up: ## Run the backend image on :8000 (stop the native backend first)
 	docker compose up --build backend
