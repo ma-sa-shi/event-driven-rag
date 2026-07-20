@@ -1,0 +1,839 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`スナップショット 1`] = `
+{
+  "Outputs": {
+    "ApiFunctionName": {
+      "Value": {
+        "Ref": "ApiFunctionCE271BD4",
+      },
+    },
+    "ApiFunctionUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiFunctionFunctionUrl73AD62DC",
+          "FunctionUrl",
+        ],
+      },
+    },
+    "ChatFunctionName": {
+      "Value": {
+        "Ref": "ChatFunction3D7C447E",
+      },
+    },
+    "ChatFunctionUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ChatFunctionFunctionUrl85FDC611",
+          "FunctionUrl",
+        ],
+      },
+    },
+    "EcrRepositoryUri": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            {
+              "Fn::Select": [
+                4,
+                {
+                  "Fn::Split": [
+                    ":",
+                    {
+                      "Fn::GetAtt": [
+                        "Repository22E53BBD",
+                        "Arn",
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            ".dkr.ecr.",
+            {
+              "Fn::Select": [
+                3,
+                {
+                  "Fn::Split": [
+                    ":",
+                    {
+                      "Fn::GetAtt": [
+                        "Repository22E53BBD",
+                        "Arn",
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "Repository22E53BBD",
+            },
+          ],
+        ],
+      },
+    },
+    "IngestFunctionName": {
+      "Value": {
+        "Ref": "IngestFunction4B2F2EB2",
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "ApiFunctionCE271BD4": {
+      "DependsOn": [
+        "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+        "ApiFunctionServiceRole52B9747B",
+      ],
+      "Properties": {
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:0779c2020920be03ceec7397b58d0ae3ba7aa564151827f402e96796a723d3f3",
+          },
+        },
+        "Environment": {
+          "Variables": {
+            "DOCUMENTS_BUCKET_NAME": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
+            },
+            "INGEST_QUEUE_URL": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefIngestQueue2280FF4EF5DFF735",
+            },
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "api",
+            "TABLE_NAME": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
+            },
+          },
+        },
+        "MemorySize": 512,
+        "PackageType": "Image",
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiFunctionServiceRole52B9747B",
+            "Arn",
+          ],
+        },
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ApiFunctionFunctionUrl73AD62DC": {
+      "Properties": {
+        "AuthType": "NONE",
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Url",
+    },
+    "ApiFunctionServiceRole52B9747B": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ApiFunctionServiceRoleDefaultPolicy20A32B8D": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttDocumentsBucket9EC9DEB9ArnEA5095A7",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttDocumentsBucket9EC9DEB9ArnEA5095A7",
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttIngestQueue2280FF4EArnFE0694A6",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+        "Roles": [
+          {
+            "Ref": "ApiFunctionServiceRole52B9747B",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ApiFunctioninvokefunctionB5A175E4": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "InvokedViaFunctionUrl": true,
+        "Principal": "*",
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ApiFunctioninvokefunctionurl0B8A0798": {
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "FunctionUrlAuthType": "NONE",
+        "Principal": "*",
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ChatFunction3D7C447E": {
+      "DependsOn": [
+        "ChatFunctionServiceRoleDefaultPolicy8AB4563A",
+        "ChatFunctionServiceRole544D50A9",
+      ],
+      "Properties": {
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:0779c2020920be03ceec7397b58d0ae3ba7aa564151827f402e96796a723d3f3",
+          },
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_LWA_INVOKE_MODE": "response_stream",
+            "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
+            "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "chat",
+            "TABLE_NAME": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
+            },
+            "VECTOR_BUCKET_ARN": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorBucketVectorBucketArnAA1E2656",
+            },
+            "VECTOR_INDEX_ARN": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
+            },
+          },
+        },
+        "MemorySize": 1024,
+        "PackageType": "Image",
+        "Role": {
+          "Fn::GetAtt": [
+            "ChatFunctionServiceRole544D50A9",
+            "Arn",
+          ],
+        },
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ChatFunctionFunctionUrl85FDC611": {
+      "Properties": {
+        "AuthType": "NONE",
+        "InvokeMode": "RESPONSE_STREAM",
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "ChatFunction3D7C447E",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Url",
+    },
+    "ChatFunctionServiceRole544D50A9": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ChatFunctionServiceRoleDefaultPolicy8AB4563A": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3vectors:GetIndex",
+                "s3vectors:QueryVectors",
+                "s3vectors:GetVectors",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
+              },
+            },
+            {
+              "Action": [
+                "ssm:DescribeParameters",
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+                "ssm:GetParameterHistory",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/event-driven-rag/openai-api-key",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:DescribeParameters",
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+                "ssm:GetParameterHistory",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/event-driven-rag/cohere-api-key",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ChatFunctionServiceRoleDefaultPolicy8AB4563A",
+        "Roles": [
+          {
+            "Ref": "ChatFunctionServiceRole544D50A9",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ChatFunctioninvokefunctionE31317E4": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ChatFunction3D7C447E",
+            "Arn",
+          ],
+        },
+        "InvokedViaFunctionUrl": true,
+        "Principal": "*",
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ChatFunctioninvokefunctionurlE2D45C7F": {
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ChatFunction3D7C447E",
+            "Arn",
+          ],
+        },
+        "FunctionUrlAuthType": "NONE",
+        "Principal": "*",
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "IngestFunction4B2F2EB2": {
+      "DependsOn": [
+        "IngestFunctionServiceRoleDefaultPolicy8EB1E4A7",
+        "IngestFunctionServiceRole55EB4427",
+      ],
+      "Properties": {
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:2ee5b87d59a6c32c3111f1841313e3fb33066775ed1b8469f86b1cf5e42baaba",
+          },
+        },
+        "Environment": {
+          "Variables": {
+            "DOCUMENTS_BUCKET_NAME": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
+            },
+            "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
+            "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_SERVICE_NAME": "ingest",
+            "TABLE_NAME": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
+            },
+            "VECTOR_BUCKET_ARN": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorBucketVectorBucketArnAA1E2656",
+            },
+            "VECTOR_INDEX_ARN": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
+            },
+          },
+        },
+        "MemorySize": 1024,
+        "PackageType": "Image",
+        "Role": {
+          "Fn::GetAtt": [
+            "IngestFunctionServiceRole55EB4427",
+            "Arn",
+          ],
+        },
+        "Timeout": 600,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "IngestFunctionServiceRole55EB4427": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "IngestFunctionServiceRoleDefaultPolicy8EB1E4A7": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:ChangeMessageVisibility",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttIngestQueue2280FF4EArnFE0694A6",
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttTableCD117FA1ArnE2C8C204",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttDocumentsBucket9EC9DEB9ArnEA5095A7",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttDocumentsBucket9EC9DEB9ArnEA5095A7",
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3vectors:GetIndex",
+                "s3vectors:PutVectors",
+                "s3vectors:ListVectors",
+                "s3vectors:DeleteVectors",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
+              },
+            },
+            {
+              "Action": [
+                "ssm:DescribeParameters",
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+                "ssm:GetParameterHistory",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":ssm:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/event-driven-rag/openai-api-key",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "IngestFunctionServiceRoleDefaultPolicy8EB1E4A7",
+        "Roles": [
+          {
+            "Ref": "IngestFunctionServiceRole55EB4427",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "IngestFunctionSqsEventSourceTestDataStackIngestQueueF9B87988A4E459FB": {
+      "Properties": {
+        "BatchSize": 1,
+        "EventSourceArn": {
+          "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttIngestQueue2280FF4EArnFE0694A6",
+        },
+        "FunctionName": {
+          "Ref": "IngestFunction4B2F2EB2",
+        },
+      },
+      "Type": "AWS::Lambda::EventSourceMapping",
+    },
+    "Repository22E53BBD": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "EmptyOnDelete": true,
+      },
+      "Type": "AWS::ECR::Repository",
+      "UpdateReplacePolicy": "Delete",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

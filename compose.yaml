@@ -6,6 +6,8 @@ services:
   backend:
     build:
       context: apps/backend
+      # Without this, docker compose builds the last stage (worker)
+      target: web
     image: event-driven-rag-backend
     ports:
       - "8000:8000"
