@@ -19,6 +19,10 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.15.22",
 ]
+# ingest-fn(Dockerfileのworkerターゲット)専用。ネイティブ開発環境には入れない
+worker = [
+    "awslambdaric>=3.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
