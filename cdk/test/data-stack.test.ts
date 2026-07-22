@@ -115,6 +115,55 @@ describe('SQS', () => {
   });
 });
 
+describe('Cognito', () => {
+  test('セルフサインアップ無効・email/name必須のUser Poolが作成される', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
+      AutoVerifiedAttributes: ['email'],
+      UsernameAttributes: ['email'],
+      Schema: Match.arrayWith([
+        Match.objectLike({ Name: 'email', Required: true, Mutable: true }),
+        Match.objectLike({ Name: 'name', Required: true, Mutable: true }),
+      ]),
+    });
+  });
+
+  test('スタック削除時にUser Poolも削除される', () => {
+    template.hasResource('AWS::Cognito::UserPool', {
+      DeletionPolicy: 'Delete',
+    });
+  });
+
+  test('Hosted UIドメインが作成される', () => {
+    template.resourceCountIs('AWS::Cognito::UserPoolDomain', 1);
+  });
+
+  test('SPAクライアントはシークレットなしのAuthorization Code + PKCEを設定する', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      GenerateSecret: false,
+      AllowedOAuthFlows: ['code'],
+      AllowedOAuthFlowsUserPoolClient: true,
+      AllowedOAuthScopes: ['openid', 'email', 'profile'],
+      CallbackURLs: ['http://localhost:5173/auth/callback'],
+      LogoutURLs: ['http://localhost:5173'],
+      PreventUserExistenceErrors: 'ENABLED',
+    });
+  });
+
+  test('トークン有効期限はaccess/id 1時間、refresh 30日を設定する', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      AccessTokenValidity: 60,
+      IdTokenValidity: 60,
+      RefreshTokenValidity: 43200,
+      TokenValidityUnits: {
+        AccessToken: 'minutes',
+        IdToken: 'minutes',
+        RefreshToken: 'minutes',
+      },
+    });
+  });
+});
+
 test('スナップショット', () => {
   expect(template.toJSON()).toMatchSnapshot();
 });
