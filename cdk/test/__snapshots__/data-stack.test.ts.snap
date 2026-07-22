@@ -3,6 +3,32 @@
 exports[`スナップショット 1`] = `
 {
   "Outputs": {
+    "CognitoDomainUrl": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "UserPoolHostedUiDomainE021B0B6",
+            },
+            ".auth.",
+            {
+              "Ref": "AWS::Region",
+            },
+            ".amazoncognito.com",
+          ],
+        ],
+      },
+    },
+    "CognitoIssuer": {
+      "Value": {
+        "Fn::GetAtt": [
+          "UserPool6BA7E5F2",
+          "ProviderURL",
+        ],
+      },
+    },
     "DocumentsBucketName": {
       "Value": {
         "Ref": "DocumentsBucket9EC9DEB9",
@@ -21,6 +47,16 @@ exports[`スナップショット 1`] = `
     "TableName": {
       "Value": {
         "Ref": "TableCD117FA1",
+      },
+    },
+    "UserPoolClientId": {
+      "Value": {
+        "Ref": "UserPoolSpaClient6B560FFA",
+      },
+    },
+    "UserPoolId": {
+      "Value": {
+        "Ref": "UserPool6BA7E5F2",
       },
     },
     "VectorBucketArn": {
@@ -380,6 +416,106 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Delete",
+    },
+    "UserPool6BA7E5F2": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_email",
+              "Priority": 1,
+            },
+          ],
+        },
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true,
+        },
+        "AutoVerifiedAttributes": [
+          "email",
+        ],
+        "EmailVerificationMessage": "The verification code to your new account is {####}",
+        "EmailVerificationSubject": "Verify your new account",
+        "Schema": [
+          {
+            "Mutable": true,
+            "Name": "email",
+            "Required": true,
+          },
+          {
+            "Mutable": true,
+            "Name": "name",
+            "Required": true,
+          },
+        ],
+        "SmsVerificationMessage": "The verification code to your new account is {####}",
+        "UsernameAttributes": [
+          "email",
+        ],
+        "VerificationMessageTemplate": {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE",
+          "EmailMessage": "The verification code to your new account is {####}",
+          "EmailSubject": "Verify your new account",
+          "SmsMessage": "The verification code to your new account is {####}",
+        },
+      },
+      "Type": "AWS::Cognito::UserPool",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "UserPoolHostedUiDomainE021B0B6": {
+      "Properties": {
+        "Domain": {
+          "Fn::Join": [
+            "",
+            [
+              "event-driven-rag-",
+              {
+                "Ref": "AWS::AccountId",
+              },
+            ],
+          ],
+        },
+        "UserPoolId": {
+          "Ref": "UserPool6BA7E5F2",
+        },
+      },
+      "Type": "AWS::Cognito::UserPoolDomain",
+    },
+    "UserPoolSpaClient6B560FFA": {
+      "Properties": {
+        "AccessTokenValidity": 60,
+        "AllowedOAuthFlows": [
+          "code",
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": [
+          "openid",
+          "email",
+          "profile",
+        ],
+        "CallbackURLs": [
+          "http://localhost:5173/auth/callback",
+        ],
+        "GenerateSecret": false,
+        "IdTokenValidity": 60,
+        "LogoutURLs": [
+          "http://localhost:5173",
+        ],
+        "PreventUserExistenceErrors": "ENABLED",
+        "RefreshTokenValidity": 43200,
+        "SupportedIdentityProviders": [
+          "COGNITO",
+        ],
+        "TokenValidityUnits": {
+          "AccessToken": "minutes",
+          "IdToken": "minutes",
+          "RefreshToken": "minutes",
+        },
+        "UserPoolId": {
+          "Ref": "UserPool6BA7E5F2",
+        },
+      },
+      "Type": "AWS::Cognito::UserPoolClient",
     },
     "VectorBucket": {
       "Type": "AWS::S3Vectors::VectorBucket",

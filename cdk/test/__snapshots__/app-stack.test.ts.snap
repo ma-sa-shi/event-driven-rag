@@ -101,11 +101,17 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:0779c2020920be03ceec7397b58d0ae3ba7aa564151827f402e96796a723d3f3",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:9ad973286f2b88a402dd9ba8373a6e30afb53ce3237e68e037842aff947a47cd",
           },
         },
         "Environment": {
           "Variables": {
+            "COGNITO_CLIENT_ID": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefUserPoolSpaClient6B560FFA03368753",
+            },
+            "COGNITO_ISSUER": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttUserPool6BA7E5F2ProviderURL1DC61701",
+            },
             "DOCUMENTS_BUCKET_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
             },
@@ -322,12 +328,18 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:0779c2020920be03ceec7397b58d0ae3ba7aa564151827f402e96796a723d3f3",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:9ad973286f2b88a402dd9ba8373a6e30afb53ce3237e68e037842aff947a47cd",
           },
         },
         "Environment": {
           "Variables": {
             "AWS_LWA_INVOKE_MODE": "response_stream",
+            "COGNITO_CLIENT_ID": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputRefUserPoolSpaClient6B560FFA03368753",
+            },
+            "COGNITO_ISSUER": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttUserPool6BA7E5F2ProviderURL1DC61701",
+            },
             "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
             "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
             "POWERTOOLS_LOG_LEVEL": "INFO",
@@ -574,7 +586,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:2ee5b87d59a6c32c3111f1841313e3fb33066775ed1b8469f86b1cf5e42baaba",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:5785ffb2977290719945ddb169a01dc670cf00a4ab0a8f4a5e5af0442c6faf98",
           },
         },
         "Environment": {

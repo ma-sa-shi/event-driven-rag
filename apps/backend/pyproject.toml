@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.139.2",
     "httpx>=0.28.1",
     "pydantic>=2.13.4",
+    "pyjwt[crypto]>=2.13.0",
     "python-multipart>=0.0.32",
     "uvicorn>=0.51.0",
 ]
@@ -16,6 +17,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2>=2.7.0",
+    "moto[dynamodb]>=5.2.2",
     "pytest>=9.1.1",
     "ruff>=0.15.22",
 ]

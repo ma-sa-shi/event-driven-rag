@@ -1,14 +1,22 @@
-import { useEffect } from "react";
-import { api } from "./api/client";
+import { Route, Routes } from "react-router-dom";
+import { RequireAuth } from "./auth/RequireAuth";
+import { AuthCallback } from "./pages/AuthCallback";
+import { Home } from "./pages/Home";
 
 function App() {
-  useEffect(() => {
-    api.get("/health").then((res) => {
-      console.log(res.data);
-    });
-  }, []);
-
-  return <h1>Event Driven RAG</h1>;
+  return (
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route
+        path="/"
+        element={
+          <RequireAuth>
+            <Home />
+          </RequireAuth>
+        }
+      />
+    </Routes>
+  );
 }
 
 export default App;
