@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3vectors from 'aws-cdk-lib/aws-s3vectors';
@@ -7,7 +8,8 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 /**
  * データ層スタック。
- * DynamoDBシングルテーブル、S3バケット、S3 Vectors、取込用SQSを管理する。
+ * DynamoDBシングルテーブル、S3バケット、S3 Vectors、取込用SQS、
+ * 認証のCognito User Poolを管理する。
  */
 export class DataStack extends cdk.Stack {
   public readonly table: dynamodb.Table;
@@ -17,6 +19,9 @@ export class DataStack extends cdk.Stack {
   public readonly vectorIndex: s3vectors.CfnIndex;
   public readonly ingestQueue: sqs.Queue;
   public readonly ingestDeadLetterQueue: sqs.Queue;
+  public readonly userPool: cognito.UserPool;
+  public readonly userPoolClient: cognito.UserPoolClient;
+  public readonly userPoolDomain: cognito.UserPoolDomain;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -87,11 +92,54 @@ export class DataStack extends cdk.Stack {
       },
     });
 
+    // 認証。管理者がユーザーを作成し招待メールを送る運用のためセルフサインアップは無効
+    // (詳細はdocs/authorization.md、ADR-0004)
+    this.userPool = new cognito.UserPool(this, 'UserPool', {
+      selfSignUpEnabled: false,
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      standardAttributes: {
+        email: { required: true, mutable: true },
+        // 表示名。サインイン時にDynamoDBへキャッシュされる
+        fullname: { required: true, mutable: true },
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // prefixはグローバル一意制約があるためアカウントIDで衝突を避ける
+    this.userPoolDomain = this.userPool.addDomain('HostedUiDomain', {
+      cognitoDomain: { domainPrefix: `event-driven-rag-${this.account}` },
+    });
+
+    // SPA用パブリッククライアント。シークレットなしのAuthorization Code + PKCE
+    this.userPoolClient = this.userPool.addClient('SpaClient', {
+      generateSecret: false,
+      preventUserExistenceErrors: true,
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        // profileは表示名(name)の取得に必要
+        scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
+        // TODO: EdgeStack実装時にCloudFrontドメインのURLを追加する
+        callbackUrls: ['http://localhost:5173/auth/callback'],
+        logoutUrls: ['http://localhost:5173'],
+      },
+      accessTokenValidity: cdk.Duration.hours(1),
+      idTokenValidity: cdk.Duration.hours(1),
+      refreshTokenValidity: cdk.Duration.days(30),
+    });
+
     new cdk.CfnOutput(this, 'TableName', { value: this.table.tableName });
     new cdk.CfnOutput(this, 'SpaBucketName', { value: this.spaBucket.bucketName });
     new cdk.CfnOutput(this, 'DocumentsBucketName', { value: this.documentsBucket.bucketName });
     new cdk.CfnOutput(this, 'VectorBucketArn', { value: this.vectorBucket.attrVectorBucketArn });
     new cdk.CfnOutput(this, 'VectorIndexArn', { value: this.vectorIndex.attrIndexArn });
     new cdk.CfnOutput(this, 'IngestQueueUrl', { value: this.ingestQueue.queueUrl });
+    new cdk.CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });
+    new cdk.CfnOutput(this, 'UserPoolClientId', { value: this.userPoolClient.userPoolClientId });
+    // SPAのVITE_COGNITO_AUTHORITYとバックエンドのCOGNITO_ISSUERに使う
+    new cdk.CfnOutput(this, 'CognitoIssuer', { value: this.userPool.userPoolProviderUrl });
+    // SPAのVITE_COGNITO_DOMAIN(サインアウトの/logoutリダイレクト)に使う
+    new cdk.CfnOutput(this, 'CognitoDomainUrl', { value: this.userPoolDomain.baseUrl() });
   }
 }

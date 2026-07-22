@@ -57,6 +57,18 @@ describe('Lambda', () => {
     expect(env.POWERTOOLS_LOG_LEVEL).toBe('INFO');
   });
 
+  test('api-fnとchat-fnはJWT検証用のCognito環境変数を持つ', () => {
+    for (const serviceName of ['api', 'chat']) {
+      const [, fn] = findFunctionByServiceName(serviceName);
+      const env = fn.Properties.Environment.Variables;
+      expect(env).toHaveProperty('COGNITO_ISSUER');
+      expect(env).toHaveProperty('COGNITO_CLIENT_ID');
+    }
+    // HTTPリクエストを受けないingest-fnには不要
+    const [, ingestFn] = findFunctionByServiceName('ingest');
+    expect(ingestFn.Properties.Environment.Variables).not.toHaveProperty('COGNITO_ISSUER');
+  });
+
   test('chat-fnは1024MB/300秒でストリーミングとSSMパラメータ名を設定する', () => {
     const [, fn] = findFunctionByServiceName('chat');
     expect(fn.Properties.MemorySize).toBe(1024);
