@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, FastAPI, Request
 
 from app.logger import logger
-from app.routers import users
+from app.routers import chats, documents, users
 
 app = FastAPI()
 
@@ -47,4 +47,6 @@ def health():
 
 
 router.include_router(users.router)
+router.include_router(documents.router)
+router.include_router(chats.router)
 app.include_router(router)

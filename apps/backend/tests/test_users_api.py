@@ -51,3 +51,28 @@ def test_missing_token_returns_401(dynamodb_table):
 def test_empty_display_name_returns_422(make_token, dynamodb_table):
     res = post_me(make_token(), {"displayName": "", "email": "taro@example.com"})
     assert res.status_code == 422
+
+
+def test_can_get_other_users_profile(make_token, dynamodb_table):
+    post_me(
+        make_token(sub="user-abc"),
+        {"displayName": "山田 太郎", "email": "taro@example.com"},
+    )
+
+    res = client.get(
+        "/api/users/user-abc",
+        headers={"Authorization": f"Bearer {make_token(sub='user-other')}"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["userId"] == "user-abc"
+    assert body["displayName"] == "山田 太郎"
+    assert body["email"] == "taro@example.com"
+
+
+def test_unknown_user_returns_404(make_token, dynamodb_table):
+    res = client.get(
+        "/api/users/unknown-user",
+        headers={"Authorization": f"Bearer {make_token()}"},
+    )
+    assert res.status_code == 404
