@@ -13,6 +13,8 @@ from app.settings import get_settings
 ISSUER = "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_test"
 CLIENT_ID = "test-client-id"
 TABLE_NAME = "test-table"
+BUCKET_NAME = "test-documents-bucket"
+QUEUE_NAME = "test-ingest-queue"
 
 
 @pytest.fixture(autouse=True)
@@ -20,6 +22,9 @@ def env(monkeypatch):
     monkeypatch.setenv("COGNITO_ISSUER", ISSUER)
     monkeypatch.setenv("COGNITO_CLIENT_ID", CLIENT_ID)
     monkeypatch.setenv("TABLE_NAME", TABLE_NAME)
+    monkeypatch.setenv("DOCUMENTS_BUCKET_NAME", BUCKET_NAME)
+    # 実URLはawsフィクスチャがキュー作成後に上書きする
+    monkeypatch.setenv("INGEST_QUEUE_URL", "https://sqs.invalid/placeholder")
     # motoが実クレデンシャルへフォールバックしないようダミーを設定
     monkeypatch.setenv("AWS_DEFAULT_REGION", "ap-northeast-1")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
@@ -72,7 +77,8 @@ def make_token(rsa_key):
 
 
 @pytest.fixture
-def dynamodb_table():
+def aws(env, monkeypatch):
+    """moto上にテーブル・バケット・キューを作成し、AWSアクセスをモック化する。"""
     with mock_aws():
         table = boto3.resource("dynamodb").create_table(
             TableName=TABLE_NAME,
@@ -83,7 +89,33 @@ def dynamodb_table():
             AttributeDefinitions=[
                 {"AttributeName": "PK", "AttributeType": "S"},
                 {"AttributeName": "SK", "AttributeType": "S"},
+                {"AttributeName": "GSI1PK", "AttributeType": "S"},
+                {"AttributeName": "GSI1SK", "AttributeType": "S"},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "GSI1",
+                    "KeySchema": [
+                        {"AttributeName": "GSI1PK", "KeyType": "HASH"},
+                        {"AttributeName": "GSI1SK", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
             ],
             BillingMode="PAY_PER_REQUEST",
         )
-        yield table
+        s3 = boto3.client("s3")
+        s3.create_bucket(
+            Bucket=BUCKET_NAME,
+            CreateBucketConfiguration={"LocationConstraint": "ap-northeast-1"},
+        )
+        sqs = boto3.client("sqs")
+        queue_url = sqs.create_queue(QueueName=QUEUE_NAME)["QueueUrl"]
+        monkeypatch.setenv("INGEST_QUEUE_URL", queue_url)
+        get_settings.cache_clear()
+        yield SimpleNamespace(table=table, s3=s3, sqs=sqs, queue_url=queue_url)
+
+
+@pytest.fixture
+def dynamodb_table(aws):
+    return aws.table
