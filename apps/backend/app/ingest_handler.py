@@ -1,15 +1,15 @@
-"""ingest-fn entrypoint, invoked by awslambdaric (Dockerfile worker target).
-
-Runs as a plain Lambda handler triggered by SQS — no Web Adapter, no FastAPI.
-Text extraction / chunking / embedding / S3 Vectors registration will be
-implemented in a later issue; for now the handler only logs received messages.
+"""ingest-fn のエントリポイント
+Dockerfileの worker ターゲットで awslambdaric により呼び出される。
+SQSによってトリガーされる通常のLambdaハンドラーとして動作する（Web AdapterやFastAPIは不使用）。
+テキスト抽出 / チャンク分割 / Embedding / S3 Vectors への登録は後で実装予定。
+現時点では、ハンドラーは受信したメッセージのログ出力のみを行う。
 """
 
 import logging
 
 logger = logging.getLogger(__name__)
-# The Lambda runtime already attaches a handler to the root logger, so
-# logging.basicConfig() is a no-op here; set the level directly instead.
+# Lambdaの実行環境がすでにルートロガーにハンドラーを追加しているため、
+# logging.basicConfig() は効果がない（no-op）。そのため直接ログレベルを設定する。
 logger.setLevel(logging.INFO)
 
 
@@ -18,5 +18,5 @@ def handler(event, context):
     logger.info("received %d ingest message(s)", len(records))
     for record in records:
         logger.info("messageId=%s body=%s", record.get("messageId"), record.get("body"))
-    # Partial-batch response shape; empty means every record succeeded.
+    # バッチの一部失敗用レスポンス形式。空の場合はすべてのレコードが成功したことを意味する。
     return {"batchItemFailures": []}
