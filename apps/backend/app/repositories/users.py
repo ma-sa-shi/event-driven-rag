@@ -13,6 +13,10 @@ class UserRepository:
     def __init__(self, table_name: str) -> None:
         self._table = boto3.resource("dynamodb").Table(table_name)
 
+    def get_profile(self, user_id: str) -> dict | None:
+        res = self._table.get_item(Key={"PK": f"USER#{user_id}", "SK": "PROFILE"})
+        return res.get("Item")
+
     def upsert_profile(self, user_id: str, display_name: str, email: str) -> None:
         now = datetime.now(UTC).isoformat()
         self._table.update_item(
