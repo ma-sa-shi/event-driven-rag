@@ -80,11 +80,11 @@ describe('S3 Vectors', () => {
     template.resourceCountIs('AWS::S3Vectors::VectorBucket', 1);
   });
 
-  test('text-embedding-3-large向けのインデックスが作成される', () => {
+  test('Cohere embed-v4.0向けのインデックスが作成される', () => {
     template.hasResourceProperties('AWS::S3Vectors::Index', {
       VectorBucketArn: Match.anyValue(),
       DataType: 'float32',
-      Dimension: 3072,
+      Dimension: 1536,
       DistanceMetric: 'cosine',
       MetadataConfiguration: {
         NonFilterableMetadataKeys: ['text', 'filename'],

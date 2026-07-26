@@ -91,13 +91,12 @@ describe('Lambda', () => {
     expect(env).not.toHaveProperty('COHERE_API_KEY_PARAMETER_NAME');
   });
 
-  test('ingest-fnはworkerターゲットの別イメージを使う', () => {
-    const [, apiFn] = findFunctionByServiceName('api');
-    const [, chatFn] = findFunctionByServiceName('chat');
-    const [, ingestFn] = findFunctionByServiceName('ingest');
-    // web(api/chat)は同一アセット、worker(ingest)は別アセット
-    expect(apiFn.Properties.Code.ImageUri).toEqual(chatFn.Properties.Code.ImageUri);
-    expect(ingestFn.Properties.Code.ImageUri).not.toEqual(apiFn.Properties.Code.ImageUri);
+  test('3つのLambdaはそれぞれ別ターゲットのイメージを使う', () => {
+    const imageUris = ['api', 'chat', 'ingest'].map((serviceName) =>
+      JSON.stringify(findFunctionByServiceName(serviceName)[1].Properties.Code.ImageUri),
+    );
+    // web / chat / worker の3ターゲットに対応し、どれも共有しない
+    expect(new Set(imageUris).size).toBe(3);
   });
 });
 
