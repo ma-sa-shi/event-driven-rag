@@ -17,10 +17,18 @@ dependencies = [
 ]
 
 [dependency-groups]
+# chat-fn(Dockerfileのchatターゲット)専用。api-fn/ingest-fnのイメージには入れない。
+# ローカル開発とテストではRAGパイプラインを動かすため既定で入れる
+chat = [
+    "langchain-cohere>=0.6.0",
+    "langchain-openai>=1.4.1",
+    "langgraph>=1.2.9",
+]
 dev = [
     "httpx2>=2.7.0",
     "moto[dynamodb,s3,sqs]>=5.2.2",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.3.0",
     "ruff>=0.15.22",
 ]
 # ingest-fn(Dockerfileのworkerターゲット)専用。ネイティブ開発環境には入れない
@@ -28,6 +36,19 @@ worker = [
     "awslambdaric>=3.1",
 ]
 
+[tool.uv]
+default-groups = ["dev", "chat"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
+
+[tool.ruff]
+# VS Code拡張はリポジトリルートで動くため、appを第一者パッケージと解決できるよう明示する
+src = ["."]
+
+[tool.ruff.lint]
+# 既定(E4/E7/E9/F)にI(isort)を追加し、import順をmake lintで強制する。
+# 選択を明示することでエディタ側の既定ルールセットとの食い違いも防ぐ
+select = ["E4", "E7", "E9", "F", "I"]
