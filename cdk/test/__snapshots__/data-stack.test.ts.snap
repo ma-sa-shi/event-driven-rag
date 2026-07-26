@@ -523,7 +523,7 @@ exports[`スナップショット 1`] = `
     "VectorIndex": {
       "Properties": {
         "DataType": "float32",
-        "Dimension": 3072,
+        "Dimension": 1536,
         "DistanceMetric": "cosine",
         "MetadataConfiguration": {
           "NonFilterableMetadataKeys": [
