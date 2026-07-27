@@ -101,7 +101,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:9ad973286f2b88a402dd9ba8373a6e30afb53ce3237e68e037842aff947a47cd",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:5a7cabbd43d6223219e8209b77e90fe696d0fc3c8b832dfe99961fac5a2df0c1",
           },
         },
         "Environment": {
@@ -328,7 +328,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:9ad973286f2b88a402dd9ba8373a6e30afb53ce3237e68e037842aff947a47cd",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:bb651d64ff61c2784e3724db87531891b53746b4822015d502447aeb63e890f3",
           },
         },
         "Environment": {
@@ -586,7 +586,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:5785ffb2977290719945ddb169a01dc670cf00a4ab0a8f4a5e5af0442c6faf98",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:cda9f0e63a86fa5decd6ea2155ee8ed204371af12bffffdcf66caabec8840135",
           },
         },
         "Environment": {
