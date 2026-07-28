@@ -162,7 +162,8 @@ export class AppStack extends cdk.Stack {
           DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
           VECTOR_BUCKET_ARN: dataStack.vectorBucket.attrVectorBucketArn,
           VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
-          OPENAI_API_KEY_PARAMETER_NAME,
+          // Embeddingはchat-fnの検索側と同じCohereモデルを使うため、OpenAIキーは不要
+          COHERE_API_KEY_PARAMETER_NAME,
           POWERTOOLS_SERVICE_NAME: "ingest",
           POWERTOOLS_LOG_LEVEL: "INFO",
         },
@@ -181,14 +182,13 @@ export class AppStack extends cdk.Stack {
         actions: [
           "s3vectors:GetIndex",
           "s3vectors:PutVectors",
-          // 再取込時の既存ベクトル削除用
-          "s3vectors:ListVectors",
+          // 再取込でチャンク数が減ったときの余剰ベクトル削除用
           "s3vectors:DeleteVectors",
         ],
         resources: [dataStack.vectorIndex.attrIndexArn],
       }),
     );
-    openaiApiKeyParameter.grantRead(this.ingestFunction);
+    cohereApiKeyParameter.grantRead(this.ingestFunction);
 
     new cdk.CfnOutput(this, "ApiFunctionUrl", {
       value: this.apiFunctionUrl.url,
