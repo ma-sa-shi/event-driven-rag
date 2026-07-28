@@ -15,6 +15,7 @@ def put_document(
     filename: str = "doc.pdf",
     status: str = "uploaded",
     created_at: str | None = None,
+    chunk_count: int | None = None,
 ) -> dict:
     now = created_at or datetime.now(UTC).isoformat()
     item = {
@@ -30,6 +31,9 @@ def put_document(
         "createdAt": now,
         "updatedAt": now,
     }
+    # 取込済みドキュメントのみが持つ属性
+    if chunk_count is not None:
+        item["chunkCount"] = chunk_count
     table.put_item(Item=item)
     return item
 

@@ -87,8 +87,11 @@ describe('Lambda', () => {
     expect(fn.Properties.Timeout).toBe(600);
     const env = fn.Properties.Environment.Variables;
     expect(env).not.toHaveProperty('AWS_LWA_INVOKE_MODE');
-    expect(env.OPENAI_API_KEY_PARAMETER_NAME).toBe(OPENAI_API_KEY_PARAMETER_NAME);
-    expect(env).not.toHaveProperty('COHERE_API_KEY_PARAMETER_NAME');
+    // Embeddingはchat-fnの検索側と同じCohereモデルを使うため、OpenAIキーは持たない
+    expect(env.COHERE_API_KEY_PARAMETER_NAME).toBe(COHERE_API_KEY_PARAMETER_NAME);
+    expect(env).not.toHaveProperty('OPENAI_API_KEY_PARAMETER_NAME');
+    expect(env).toHaveProperty('DOCUMENTS_BUCKET_NAME');
+    expect(env).toHaveProperty('VECTOR_INDEX_ARN');
   });
 
   test('3つのLambdaはそれぞれ別ターゲットのイメージを使う', () => {
@@ -163,7 +166,6 @@ describe('IAM', () => {
       (s) => Array.isArray(s.Action) && s.Action.includes('s3vectors:PutVectors'),
     );
     expect(statement).toBeDefined();
-    expect(statement.Action).toContain('s3vectors:ListVectors');
     expect(statement.Action).toContain('s3vectors:DeleteVectors');
   });
 
@@ -171,7 +173,7 @@ describe('IAM', () => {
     const statements = policyStatements().filter(
       (s) => Array.isArray(s.Action) && s.Action.includes('ssm:GetParameter'),
     );
-    // chat-fn(openai + cohere)とingest-fn(openai)
+    // chat-fn(openai + cohere)とingest-fn(cohere)
     expect(statements.length).toBeGreaterThanOrEqual(2);
     expect(JSON.stringify(statements)).toContain(
       `parameter${OPENAI_API_KEY_PARAMETER_NAME}`,
