@@ -7,6 +7,7 @@
 #           app.mainはlanggraphが存在する時のみSSEルーターを読み込む為、webイメージは重いライブラリを含めずに同じコードを実行可能
 # - worker: ingest-fn 用、Adapterを介さないawslambdaric経由の標準Lambdaハンドラー
 #           LWA は起動しないWebサーバーを待って初期化ブロックするため除外
+#           PDF抽出用のingestグループを追加で入れる(LangChainは含めない)
 #
 # ローカル環境では、web, chatターゲットは普通の HTTP サーバーとして動作する
 # LWAは Lambda実行環境外では動作しない為、影響しない
@@ -38,10 +39,10 @@ FROM builder AS chat-builder
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-default-groups --group chat --no-install-project
 
-# ---- worker 用ビルダー: 共通venvにawslambdaricを追加 ----
+# ---- worker 用ビルダー: 共通venvにawslambdaricとドキュメント処理依存を追加 ----
 FROM builder AS worker-builder
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-default-groups --group worker --no-install-project
+    uv sync --frozen --no-default-groups --group worker --group ingest --no-install-project
 
 # ---- web-base: LWAを使用する2ターゲットの共通ベース ----
 FROM public.ecr.aws/docker/library/python:3.12-slim AS web-base

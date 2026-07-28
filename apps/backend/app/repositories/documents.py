@@ -80,21 +80,28 @@ class DocumentRepository:
         new_status: str,
         *,
         allowed_from: tuple[str, ...],
+        chunk_count: int | None = None,
     ) -> None:
         """条件付き更新でステータスを遷移させる。
 
         現在のステータスがallowed_from外の場合はDocumentStatusErrorを送出する。
+        chunk_countは取込完了時のみ指定し、再取込での余剰ベクトル削除に使う。
         """
+        expression = "SET #status = :status, updatedAt = :now"
+        values: dict = {
+            ":status": new_status,
+            ":now": datetime.now(UTC).isoformat(),
+        }
+        if chunk_count is not None:
+            expression += ", chunkCount = :chunkCount"
+            values[":chunkCount"] = chunk_count
         try:
             self._table.update_item(
                 Key={"PK": f"USER#{user_id}", "SK": f"DOC#{document_id}"},
-                UpdateExpression="SET #status = :status, updatedAt = :now",
+                UpdateExpression=expression,
                 ConditionExpression=Attr("status").is_in(list(allowed_from)),
                 ExpressionAttributeNames={"#status": "status"},
-                ExpressionAttributeValues={
-                    ":status": new_status,
-                    ":now": datetime.now(UTC).isoformat(),
-                },
+                ExpressionAttributeValues=values,
             )
         except self._table.meta.client.exceptions.ConditionalCheckFailedException:
             raise DocumentStatusError(

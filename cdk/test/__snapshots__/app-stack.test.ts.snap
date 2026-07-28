@@ -101,7 +101,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:5a7cabbd43d6223219e8209b77e90fe696d0fc3c8b832dfe99961fac5a2df0c1",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:285f14c6565f71448dd235d42f0cf06a6aeeb5a7981276b797fb234971b2e3d1",
           },
         },
         "Environment": {
@@ -328,7 +328,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:bb651d64ff61c2784e3724db87531891b53746b4822015d502447aeb63e890f3",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:ebea902b1f87590e4dac3e20140b2f5524fa61ee9f198d880e6cbb22e451187f",
           },
         },
         "Environment": {
@@ -586,15 +586,15 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:cda9f0e63a86fa5decd6ea2155ee8ed204371af12bffffdcf66caabec8840135",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:1b55ae7c897068209c1d048353f976540a53d8b8731ada65ee7f0f5cc577a8d2",
           },
         },
         "Environment": {
           "Variables": {
+            "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
             "DOCUMENTS_BUCKET_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
             },
-            "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
             "POWERTOOLS_LOG_LEVEL": "INFO",
             "POWERTOOLS_SERVICE_NAME": "ingest",
             "TABLE_NAME": {
@@ -750,7 +750,6 @@ exports[`スナップショット 1`] = `
               "Action": [
                 "s3vectors:GetIndex",
                 "s3vectors:PutVectors",
-                "s3vectors:ListVectors",
                 "s3vectors:DeleteVectors",
               ],
               "Effect": "Allow",
@@ -782,7 +781,7 @@ exports[`スナップショット 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":parameter/event-driven-rag/openai-api-key",
+                    ":parameter/event-driven-rag/cohere-api-key",
                   ],
                 ],
               },

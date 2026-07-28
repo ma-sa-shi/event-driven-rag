@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt import PyJWKClient
 from moto import mock_aws
 
+from app.ingest.pipeline import get_ingest_pipeline
 from app.rag.runtime import get_rag_runtime
 from app.settings import get_settings
 from app.ssm import get_parameter
@@ -51,6 +52,7 @@ def _clear_caches() -> None:
     get_settings.cache_clear()
     get_parameter.cache_clear()
     get_rag_runtime.cache_clear()
+    get_ingest_pipeline.cache_clear()
 
 
 @pytest.fixture(scope="session")
