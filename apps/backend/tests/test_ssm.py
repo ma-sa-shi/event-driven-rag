@@ -7,7 +7,7 @@ PARAMETER_NAME = "/event-driven-rag/test-key"
 
 
 def test_get_parameter_decrypts_secure_string_and_caches():
-    """get_parameter が SecureString を復号して取得できること、およびキャッシュ(lru_cache)が正しく機能するか"""
+    """get_parameter が SecureString を復号して取得できること、およびキャッシュ(lru_cache)が正しく機能するか。"""
     with mock_aws():
         ssm = boto3.client("ssm")
         ssm.put_parameter(Name=PARAMETER_NAME, Value="secret-1", Type="SecureString")

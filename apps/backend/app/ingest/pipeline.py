@@ -1,5 +1,7 @@
 """取込処理のパイプライン。
-S3のファイルを読み、テキスト抽出 → チャンク分割 → Embedding生成 → S3 Vectors登録を行いドキュメントのステータスをingestedへ更新する。
+
+S3のファイルを読み、テキスト抽出 → チャンク分割 → Embedding生成 → S3 Vectors登録を行い、
+ドキュメントのステータスをingestedへ更新する。
 SSMからのAPIキー取得やクライアント生成のオーバーヘッドを避けるため、get_ingest_pipeline()はプロセス内でキャッシュする。
 """
 
@@ -35,7 +37,7 @@ class IngestPipeline:
     s3_client: Any
 
     def run(self, *, document_id: str, user_id: str, s3_key: str) -> int:
-        """1ドキュメントを取り込み、登録したチャンク数を返す"""
+        """1ドキュメントを取り込み、登録したチャンク数を返す。"""
         document = self.repository.get_owned(user_id, document_id)
         if document is None:
             raise DocumentNotFoundError(f"document not found: {document_id}")
@@ -75,7 +77,7 @@ class IngestPipeline:
     def _delete_stale_vectors(
         self, *, document_id: str, previous_count: int, current_count: int
     ) -> None:
-        """再取込でチャンク数が減ったときに、余った古いベクトルを削除する
+        """再取込でチャンク数が減ったときに、余った古いベクトルを削除する。
 
         既存keyは上書きされるため、超過分だけを消せば良い
         ListVectorsにprefix絞り込みがない為、前回のチャンク数から削除対象を決める

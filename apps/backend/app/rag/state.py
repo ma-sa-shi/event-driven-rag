@@ -1,21 +1,13 @@
-"""
-Self-RAGのデータ定義
+"""Self-RAGのデータ定義。
 
-【Graph Stateは履歴を保持する】
-- queries, documents, answer, grade, feedbackは'operator.add'により、
-  試行ごとに値が上書きされず、リストに追加される
-- そのため、各ノードは要素を1つのリストでラップして返す（例: `{"queries": [queries]}`）
+Graph Stateは試行ごとの履歴を保持する。
+queries, documents, answer, grade, feedbackは`operator.add`により値が上書きされずリストへ追加される為、
+各ノードは要素を1つのリストでラップして返す(例: `{"queries": [queries]}`)。
+格納形式は二重リスト(list[list[...]])がqueriesとdocuments、一重リスト(list[str])がanswer・grade・feedbackで、
+最新の試行結果は[-1]、初回の試行は[0]で参照する。retry_countのみ蓄積されず通常のint値として上書きされる。
 
-【データの格納形式と取得方法】
-- 二重リスト (list[list[...]]): queries, documents
-- 一重リスト (list[str]): answer, grade, feedback
-- 取得例: 最新の試行結果は[-1]、初回の試行は [0]で参照。
-
-※ retry_countのみ、蓄積されず通常の int 値として上書きされる
-
-LLMに渡すスキーマはBaseModelで出力を誘導
-Graph Stateは差分dictの積み上げ式であり、未実行ノードのキーが
-存在しない状態を表現する必要がある為、TypedDictを使用
+型の使い分けは、LLMに渡すスキーマはBaseModelで出力を誘導し、
+Graph Stateは差分dictの積み上げ式で未実行ノードのキーが存在しない状態を表現する必要がある為TypedDictとする。
 """
 
 import operator
@@ -26,9 +18,9 @@ from pydantic import BaseModel, Field
 
 
 class MultiQuery(BaseModel):
-    """
-    LLMが生成する複数の検索クエリ
-    Field(...): 必須フィールド制約
+    """LLMが生成する複数の検索クエリ。
+
+    generate_queries_nodeのwith_structured_outputで使う出力スキーマ。
     """
 
     queries: list[str] = Field(
@@ -37,7 +29,7 @@ class MultiQuery(BaseModel):
 
 
 class GradeAnswer(BaseModel):
-    """LLMによる回答の自己評価"""
+    """LLMによる回答の自己評価。"""
 
     grade: Literal["useful", "useless", "hallucination"] = Field(
         ..., description="質問に対する回答の評価"
@@ -46,7 +38,7 @@ class GradeAnswer(BaseModel):
 
 
 class GraphState(TypedDict):
-    """ワークフローの状態
+    """Self-RAGワークフローがノード間で受け渡す状態。
 
     Attributes:
         question: ユーザーからの質問

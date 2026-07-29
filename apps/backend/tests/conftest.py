@@ -57,16 +57,16 @@ def _clear_caches() -> None:
 
 @pytest.fixture(scope="session")
 def rsa_key():
-    """
-    テスト全体で使い回すJWT署名用のRSA秘密鍵
-    生成コストが高い為sessionスコープ
+    """テスト全体で使い回すJWT署名用のRSA秘密鍵を生成する。
+
+    鍵生成のコストが高い為、sessionスコープで1度だけ実行する。
     """
     return rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
 
 @pytest.fixture(autouse=True)
 def mock_jwks(monkeypatch, rsa_key):
-    """CognitoのJWKSエンドポイントへの外部HTTP通信を遮断し、ローカルのRSA公開鍵を返すようモック化する"""
+    """CognitoのJWKSエンドポイントへの外部HTTP通信を遮断し、ローカルのRSA公開鍵を返すようモック化する。"""
     signing_key = SimpleNamespace(key=rsa_key.public_key())
     monkeypatch.setattr(
         PyJWKClient, "get_signing_key_from_jwt", lambda self, token: signing_key
@@ -75,7 +75,7 @@ def mock_jwks(monkeypatch, rsa_key):
 
 @pytest.fixture
 def make_token(rsa_key):
-    """クレーム（subやexp等）を自由にカスタマイズしてCognitoアクセストークン（JWT）を生成するファクトリ関数"""
+    """クレーム(subやexp等)を差し替えてCognitoアクセストークン(JWT)を生成するファクトリを返す。"""
 
     def _make(
         *,
@@ -102,7 +102,7 @@ def make_token(rsa_key):
 
 @pytest.fixture
 def aws(env, monkeypatch):
-    """moto上でDynamoDB, S3, SQSのリソースを自動生成し、AWSアクセスを完全モック化する"""
+    """moto上でDynamoDB, S3, SQSのリソースを自動生成し、AWSアクセスを完全モック化する。"""
     with mock_aws():
         table = boto3.resource("dynamodb").create_table(
             TableName=TABLE_NAME,

@@ -1,8 +1,7 @@
-"""
-RAGパイプラインのgraph・依存コンポーネントの構築モジュール
+"""RAGパイプラインのgraphと依存コンポーネントの構築。
 
 AWS SSMからのAPIキー取得や各コンポーネントの初期化に伴うオーバーヘッドを防ぐ為、
-get_rag_runtime() は初回呼び出し時のみ実行し、プロセス内でキャッシュする
+get_rag_runtime()は初回呼び出し時のみ実行し、プロセス内でキャッシュする。
 """
 
 from dataclasses import dataclass
@@ -32,7 +31,15 @@ class RagRuntime:
     reranker: Any
 
     def configurable(self, *, user_id: str, request_id: str) -> dict:
-        """config引数経由でコンポーネントやコンテキストを各ノードに注入"""
+        """各ノードへ依存コンポーネントとリクエスト情報を渡すconfigを組み立てる。
+
+        Args:
+            user_id: ユーザーID(JWTのsub)
+            request_id: リクエストID
+
+        Returns:
+            graph.astream()にそのまま渡せるconfig
+        """
         return {
             "configurable": {
                 "chains": self.chains,
@@ -46,9 +53,12 @@ class RagRuntime:
 
 @lru_cache
 def get_rag_runtime() -> RagRuntime:
-    """
-    RagRuntimeのインスタンスを取得する
-    初回実行時にキャッシュ
+    """RagRuntimeのインスタンスを取得する。
+
+    初回呼び出し時にSSMからAPIキーを解決して構築し、以降はlru_cacheの結果を返す。
+
+    Returns:
+        graph・chains・retriever・rerankerを保持するRagRuntime
     """
     settings = get_settings()
     openai_api_key = get_parameter(settings.openai_api_key_parameter_name)

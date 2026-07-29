@@ -1,9 +1,8 @@
-"""
-Self-RAGのワークフローを構成する5つのノード定義
+"""Self-RAGのワークフローを構成する5つのノード定義。
 
-chains, retriever, rerankerは 'config["configurable"]' で受け取る
-各ノード関数名は SSE イベントの識別子に利用され、変更するとフロントエンドやDynamoDBに影響する
-テスト時は `config` にモックを注入するだけで、外部API（AWS/OpenAI/Cohere）への通信無しでMockテスト可能
+chains, retriever, rerankerは`config["configurable"]`で受け取る。
+各ノード関数名はSSEイベントの識別子に利用され、変更するとフロントエンドやDynamoDBに影響する。
+テスト時は`config`にモックを注入するだけで、外部API(AWS/OpenAI/Cohere)への通信無しで検証できる。
 """
 
 from langchain_core.runnables import RunnableConfig
@@ -19,7 +18,7 @@ FEEDBACK_PREFIX = "フィードバック: "
 
 
 def _configurable(config: RunnableConfig, key: str):
-    """configから依存オブジェクトを取得する内部ヘルパー"""
+    """configから依存オブジェクトを取得する内部ヘルパー。"""
     value = config.get("configurable", {}).get(key)
     if value is None:
         raise ValueError(f"configurableに{key}が設定されていません。")
@@ -27,12 +26,12 @@ def _configurable(config: RunnableConfig, key: str):
 
 
 def _chains(config: RunnableConfig) -> RagChains:
-    """configからRagChainsを取得する内部ヘルパー"""
+    """configからRagChainsを取得する内部ヘルパー。"""
     return _configurable(config, "chains")
 
 
 async def generate_queries_node(state: GraphState, config: RunnableConfig) -> dict:
-    """質問から複数の検索クエリを抽出する"""
+    """質問から複数の検索クエリを抽出する。"""
     question = state["question"]
     retry_count = state.get("retry_count", 0)
     feedback = state.get("feedback")
@@ -58,7 +57,7 @@ async def generate_queries_node(state: GraphState, config: RunnableConfig) -> di
 
 
 async def retrieve_contexts_node(state: GraphState, config: RunnableConfig) -> dict:
-    """クエリごとにベクトル検索し、RRFで統合してからRerankで上位へ絞る"""
+    """クエリごとにベクトル検索し、RRFで統合してからRerankで上位へ絞る。"""
     retriever = _configurable(config, "retriever")
     reranker = _configurable(config, "reranker")
 
@@ -86,7 +85,7 @@ async def retrieve_contexts_node(state: GraphState, config: RunnableConfig) -> d
 
 
 async def generate_answer_node(state: GraphState, config: RunnableConfig) -> dict:
-    """検索済みコンテキストのみを根拠に回答を生成する"""
+    """検索済みコンテキストのみを根拠に回答を生成する。"""
     current_docs = state["documents"][-1] if state.get("documents") else []
     answer = await _chains(config).generate_answer.ainvoke(
         {"question": state["question"], "context": current_docs}, config=config
@@ -102,7 +101,7 @@ async def generate_answer_node(state: GraphState, config: RunnableConfig) -> dic
 
 
 async def grade_answer_node(state: GraphState, config: RunnableConfig) -> dict:
-    """生成された回答を自己評価する"""
+    """生成された回答を自己評価する。"""
     result = await _chains(config).grade_answer.ainvoke(
         {
             "question": state["question"],
@@ -122,7 +121,7 @@ async def grade_answer_node(state: GraphState, config: RunnableConfig) -> dict:
 
 
 async def analyze_failure_node(state: GraphState, config: RunnableConfig) -> dict:
-    """再試行しても十分な回答が得られなかった原因を分析する"""
+    """再試行しても十分な回答が得られなかった原因を分析する。"""
     analysis = await _chains(config).analyze_failure.ainvoke(
         {
             "question": state["question"],

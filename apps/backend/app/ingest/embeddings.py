@@ -1,4 +1,4 @@
-"""Cohere Embed APIでチャンクのベクトルを生成する
+"""Cohere Embed APIでチャンクのベクトルを生成する。
 
 chat-fnの検索側(app/rag/runtime.py)と同じモデル・同じ次元数を使う。
 検索側はlangchain-cohereのCohereEmbeddingsを利用するが、workerイメージには

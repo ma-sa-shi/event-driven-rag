@@ -1,4 +1,5 @@
 """S3 Vectorsインデックスへのベクトル登録・削除。
+
 metadataはfilterable=documentId、non-filterable=text / filename(architecture.md 8.3)。
 vector keyは`<documentId>#<チャンク番号>`とし、chat-fnのRetrieverが
 チャンク単位でRRFの名寄せに使う(app/rag/retriever.py)。
