@@ -1,9 +1,8 @@
-"""
-Self-RAGの4つのプロンプト定義。
+"""Self-RAGの4つのプロンプト定義。
 
-【設計上の注意点】
-'generate_queries_prompt' の '{feedback}' は、テンプレート側ではなく値側が'フィードバック:'という接頭辞を持つ
-これにより、初回試行時に、空の見出し'フィードバック:'がプロンプトに残るのを防ぎ、LLMへのノイズを回避している
+設計上の注意点として、`generate_queries_prompt`の`{feedback}`は、
+テンプレート側ではなく値側が「フィードバック:」という接頭辞を持つ。
+これにより初回試行時に空の見出し「フィードバック:」がプロンプトへ残るのを防ぎ、LLMへのノイズを回避している。
 """
 
 from langchain_core.prompts import ChatPromptTemplate

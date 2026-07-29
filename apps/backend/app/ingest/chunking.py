@@ -1,4 +1,5 @@
-"""抽出テキストを検索単位のチャンクへ分割する
+"""抽出テキストを検索単位のチャンクへ分割する。
+
 langchain-text-splittersはlangchain-coreを引き込みworkerイメージを重くする為、自前実装する(ADR-0003)。
 """
 
@@ -45,7 +46,7 @@ def _split(
 def _select_separator(
     text: str, separators: tuple[str, ...]
 ) -> tuple[str, tuple[str, ...]]:
-    """テキストに含まれる最も粗いセパレータと、それより細かいセパレータ群を返す"""
+    """テキストに含まれる最も粗いセパレータと、それより細かいセパレータ群を返す。"""
     for index, separator in enumerate(separators):
         # separator == ""はどのseparatorでもマッチしなかった場合のフォールバック
         if separator == "" or separator in text:
@@ -56,7 +57,7 @@ def _select_separator(
 def _merge(
     pieces: list[str], separator: str, chunk_size: int, chunk_overlap: int
 ) -> list[str]:
-    """断片をchunk_sizeまで詰め込み、末尾chunk_overlap分を次のチャンクへ引き継ぐ"""
+    """断片をchunk_sizeまで詰め込み、末尾chunk_overlap分を次のチャンクへ引き継ぐ。"""
     chunks: list[str] = []
     current: list[str] = []
     # currentをseparatorで連結したときの長さ

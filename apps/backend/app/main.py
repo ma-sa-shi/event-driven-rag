@@ -23,11 +23,16 @@ def _lambda_request_id(request: Request) -> str | None:
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
-    """
-    全リクエストに対して追跡用のRequest IDを採番し、ログとレスポンスヘッダーに付与する
-    - @app.middleware("http"): 全てのHTTPリクエストに対して実行する割り込み処理（ミドルウェア）
-    - request (Request): リクエスト情報（ヘッダー、URL、ボディ等）
-    - call_next: 次の処理(ルーター関数)へリクエストを渡す為の非同期関数
+    """全リクエストに追跡用のRequest IDを採番し、ログとレスポンスヘッダーに付与する。
+
+    Lambda contextのaws_request_idを引き継ぎ、無い場合はUUIDで代替する。
+
+    Args:
+        request: リクエスト情報(ヘッダー、URL、ボディ等)
+        call_next: 次の処理(ルーター関数)へリクエストを渡す非同期関数
+
+    Returns:
+        X-Request-Idヘッダーを付与したレスポンス
     """
     # ローカル実行などLambda contextがない場合はUUIDで代替する
     request_id = _lambda_request_id(request) or str(uuid.uuid4())
