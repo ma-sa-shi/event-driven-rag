@@ -1,4 +1,4 @@
-"""S3 Vectorsを検索するLangChain Retrieverモジュール"""
+"""S3 Vectorsを検索するLangChain Retrieverモジュール。"""
 
 import asyncio
 from typing import Any
@@ -15,10 +15,10 @@ from pydantic import ConfigDict, Field
 
 
 class S3VectorsRetriever(BaseRetriever):
-    """
-    クエリ文字列をベクトル化し、S3 Vectorsインデックスに対してベクトル検索を行うRetiever
-    ingest-fnが登録するmetadataは text, filename, documentId
-    ベクトルのkeyをDocument.idとし、RRFでの統合をチャンク単位で機能させる
+    """クエリ文字列をベクトル化し、S3 Vectorsインデックスを検索するRetriever。
+
+    ingest-fnが登録するmetadataはtext, filename, documentId。
+    ベクトルのkeyをDocument.idとし、RRFでの統合をチャンク単位で機能させる。
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -55,7 +55,7 @@ class S3VectorsRetriever(BaseRetriever):
 
 
 def _to_document(vector: dict) -> Document:
-    """AWSレスポンス(dict)を LangChain の Document に変換するヘルパー関数"""
+    """S3 Vectorsのレスポンス1件をLangChainのDocumentへ変換する。"""
     metadata = vector.get("metadata") or {}
     return Document(
         id=vector["key"],

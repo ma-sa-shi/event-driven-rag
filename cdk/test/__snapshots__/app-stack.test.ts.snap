@@ -8,25 +8,9 @@ exports[`スナップショット 1`] = `
         "Ref": "ApiFunctionCE271BD4",
       },
     },
-    "ApiFunctionUrl": {
-      "Value": {
-        "Fn::GetAtt": [
-          "ApiFunctionFunctionUrl73AD62DC",
-          "FunctionUrl",
-        ],
-      },
-    },
     "ChatFunctionName": {
       "Value": {
         "Ref": "ChatFunction3D7C447E",
-      },
-    },
-    "ChatFunctionUrl": {
-      "Value": {
-        "Fn::GetAtt": [
-          "ChatFunctionFunctionUrl85FDC611",
-          "FunctionUrl",
-        ],
       },
     },
     "EcrRepositoryUri": {
@@ -101,7 +85,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:285f14c6565f71448dd235d42f0cf06a6aeeb5a7981276b797fb234971b2e3d1",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:2ad45decd15ddda842366000a7a7e9daa9fc368a104bfc14085ee5715bd501dc",
           },
         },
         "Environment": {
@@ -328,7 +312,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:ebea902b1f87590e4dac3e20140b2f5524fa61ee9f198d880e6cbb22e451187f",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:a96d51e1f103f60062157257e31b88f6f888c635c0cc6b9902325e653391658e",
           },
         },
         "Environment": {
@@ -586,7 +570,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:1b55ae7c897068209c1d048353f976540a53d8b8731ada65ee7f0f5cc577a8d2",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:09be40fe2fa526fb525262d3c9c577fb9ed0617b0931494980814115f428b2de",
           },
         },
         "Environment": {

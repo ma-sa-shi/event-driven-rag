@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { AppStack } from '../lib/app-stack';
 import { DataStack } from '../lib/data-stack';
+import { EdgeStack } from '../lib/edge-stack';
 
 const app = new cdk.App();
 
@@ -9,4 +10,6 @@ const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_
 
 const dataStack = new DataStack(app, 'DataStack', { env });
 
-new AppStack(app, 'AppStack', { env, dataStack });
+const appStack = new AppStack(app, 'AppStack', { env, dataStack });
+
+new EdgeStack(app, 'EdgeStack', { env, appStack });

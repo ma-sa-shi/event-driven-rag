@@ -1,6 +1,6 @@
-"""
-SSEストリーミングチャット
-chat-fnのみが公開するエンドポイント
+"""SSEストリーミングチャットのエンドポイント。
+
+chat-fnのみが公開し、api-fnのイメージには含めない(ADR-0003)。
 """
 
 from typing import Annotated
