@@ -39,11 +39,6 @@ exports[`スナップショット 1`] = `
         "Ref": "IngestQueue2280FF4E",
       },
     },
-    "SpaBucketName": {
-      "Value": {
-        "Ref": "SpaBucket48E1059F",
-      },
-    },
     "TableName": {
       "Value": {
         "Ref": "TableCD117FA1",
@@ -101,7 +96,7 @@ exports[`スナップショット 1`] = `
             [
               "Lambda function for auto-deleting objects in ",
               {
-                "Ref": "SpaBucket48E1059F",
+                "Ref": "DocumentsBucket9EC9DEB9",
               },
               " S3 bucket.",
             ],
@@ -272,96 +267,6 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
-    },
-    "SpaBucket48E1059F": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "PublicAccessBlockConfiguration": {
-          "BlockPublicAcls": true,
-          "BlockPublicPolicy": true,
-          "IgnorePublicAcls": true,
-          "RestrictPublicBuckets": true,
-        },
-        "Tags": [
-          {
-            "Key": "aws-cdk:auto-delete-objects",
-            "Value": "true",
-          },
-        ],
-      },
-      "Type": "AWS::S3::Bucket",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "SpaBucketAutoDeleteObjectsCustomResourceDCF3398A": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "SpaBucketPolicy77D96634",
-      ],
-      "Properties": {
-        "BucketName": {
-          "Ref": "SpaBucket48E1059F",
-        },
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "Custom::S3AutoDeleteObjects",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "SpaBucketPolicy77D96634": {
-      "Properties": {
-        "Bucket": {
-          "Ref": "SpaBucket48E1059F",
-        },
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "s3:PutBucketPolicy",
-                "s3:GetBucket*",
-                "s3:List*",
-                "s3:DeleteObject*",
-              ],
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::GetAtt": [
-                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
-                    "Arn",
-                  ],
-                },
-              },
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "SpaBucket48E1059F",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "SpaBucket48E1059F",
-                          "Arn",
-                        ],
-                      },
-                      "/*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::S3::BucketPolicy",
     },
     "TableCD117FA1": {
       "DeletionPolicy": "Delete",

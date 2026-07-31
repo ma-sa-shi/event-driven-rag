@@ -6,6 +6,9 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3vectors from "aws-cdk-lib/aws-s3vectors";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 
+// Vite devサーバー。デプロイ済みCognitoを使ってローカルで認証フローを動かす為に常に許可する
+const LOCAL_ORIGIN = "http://localhost:5173";
+
 /**
  * データ層スタック
  * DynamoDB(シングルテーブル構造)、S3バケット、S3 Vectors、ドキュメント取込用SQS、
@@ -13,7 +16,6 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
  */
 export class DataStack extends cdk.Stack {
   public readonly table: dynamodb.Table;
-  public readonly spaBucket: s3.Bucket;
   public readonly documentsBucket: s3.Bucket;
   public readonly vectorBucket: s3vectors.CfnVectorBucket;
   public readonly vectorIndex: s3vectors.CfnIndex;
@@ -25,6 +27,16 @@ export class DataStack extends cdk.Stack {
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // EdgeStackのCloudFrontドメイン。DataStackからEdgeStackを参照すると循環参照になる為、
+    // デプロイ時のコンテキスト(-c appDomain=dxxxx.cloudfront.net)で受け取る。
+    // 初回はappDomain無しでデプロイし、EdgeStack作成後に付けて再デプロイする(cdk/README.md)
+    const appDomain = this.node.tryGetContext("appDomain") as
+      | string
+      | undefined;
+    const appUrl = appDomain ? `https://${appDomain}` : undefined;
+    // ドキュメントのpresigned PUT/GETはローカル開発のSPAからも実行する
+    const appOrigins = appUrl ? [appUrl, LOCAL_ORIGIN] : undefined;
 
     // Users / Documents / Chat / Chat Messages を1つのテーブルで管理(シングルテーブル)
     this.table = new dynamodb.Table(this, "Table", {
@@ -42,24 +54,19 @@ export class DataStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    // SPA静的ファイル配信用バケット
-    // CloudFront OAC経由の読み取り許可設定はEdgeStackで実施
-    this.spaBucket = new s3.Bucket(this, "SpaBucket", {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-    });
+    // SPA配信用バケットはEdgeStackが持つ
+    // (OACのバケットポリシーがディストリビューションARNを参照する為、
+    //  DataStackに置くとスタック間の循環参照になる)
 
-    // RAG用ドキュメント保存用バケット（SPAからPresigned URLを利用して直接PUT/GETを実行）
+    // RAG用ドキュメント保存用バケット（SPAから署名付きURLを利用して直接PUT/GETを実行）
     this.documentsBucket = new s3.Bucket(this, "DocumentsBucket", {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       cors: [
         {
-          // TODO: EdgeStackでCloudFrontドメイン確定後にallowedOriginsを絞る
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET],
-          allowedOrigins: ["*"],
+          allowedOrigins: appOrigins ?? ["*"],
           allowedHeaders: ["*"],
         },
       ],
@@ -130,9 +137,11 @@ export class DataStack extends cdk.Stack {
           cognito.OAuthScope.EMAIL,
           cognito.OAuthScope.PROFILE,
         ],
-        // TODO: EdgeStack実装時にCloudFrontドメインのURLを追加する
-        callbackUrls: ["http://localhost:5173/auth/callback"],
-        logoutUrls: ["http://localhost:5173"],
+        callbackUrls: [
+          `${LOCAL_ORIGIN}/auth/callback`,
+          ...(appUrl ? [`${appUrl}/auth/callback`] : []),
+        ],
+        logoutUrls: [LOCAL_ORIGIN, ...(appUrl ? [appUrl] : [])],
       },
       accessTokenValidity: cdk.Duration.hours(1),
       idTokenValidity: cdk.Duration.hours(1),
@@ -140,9 +149,6 @@ export class DataStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, "TableName", { value: this.table.tableName });
-    new cdk.CfnOutput(this, "SpaBucketName", {
-      value: this.spaBucket.bucketName,
-    });
     new cdk.CfnOutput(this, "DocumentsBucketName", {
       value: this.documentsBucket.bucketName,
     });
