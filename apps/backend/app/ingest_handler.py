@@ -20,7 +20,10 @@ FAILED_ALLOWED_FROM = ("processing", "failed", "ingested")
 # Lambdaのコンテキスト情報(function_nameやLambdaランタイムが生成するaws_request_id等)を自動的にログに付与
 @logger.inject_lambda_context
 def handler(event, context):
-    """Records を取り出し1件ずつ_process_recordに渡して実行する関数"""
+    """SQSイベントのRecordsを取り出し、1件ずつ取込処理へ渡す。
+
+    1件でも失敗すると例外を送出するため、SQSは同じバッチ全体を再試行する。
+    """
     records = event.get("Records", [])
     logger.info("received ingest message(s)", record_count=len(records))
     for record in records:
@@ -51,9 +54,9 @@ def _process_record(record: dict) -> None:
 
 
 def _mark_failed(pipeline, *, user_id: str, document_id: str) -> None:
-    """
-    ドキュメントのステータスを failed に更新する処理
-    取込失敗のraiseを上書きしない為にステータス更新処理自体が失敗しても例外を外に漏らさない
+    """ドキュメントのステータスをfailedへ更新する。
+
+    取込失敗のraiseを上書きしない為、ステータス更新自体が失敗しても例外を外へ漏らさない。
     """
     try:
         pipeline.repository.update_status(

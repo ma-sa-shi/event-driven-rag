@@ -1,5 +1,6 @@
 """アップロードされたファイルからプレーンテキストを抽出する。
-対応形式はPDF / Markdown / txt
+
+対応形式はPDF / Markdown / txtで、拡張子から判別する。
 """
 
 from io import BytesIO
@@ -13,17 +14,28 @@ SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | TEXT_EXTENSIONS
 
 
 class UnsupportedFileTypeError(Exception):
-    """対応していない拡張子のファイル。再試行しても成功しない"""
+    """対応していない拡張子のファイルを受け取ったことを表す。
+
+    再試行しても成功しない為、呼び出し側はDLQへ送らずfailedで確定させる。
+    """
 
 
 class EmptyDocumentError(Exception):
-    """テキストを抽出できなかったファイル(画像だけのPDFなど)"""
+    """テキストを1文字も抽出できなかったことを表す(画像だけのPDFなど)。"""
 
 
 def extract_text(*, filename: str, body: bytes) -> str:
-    """ファイル名の拡張子から形式を判定してテキストを抽出する
+    """ファイル名の拡張子から形式を判定してテキストを抽出する。
 
-    Content-Typeはブラウザ依存で信頼できない為、拡張子だけで判定する
+    Content-Typeはブラウザ依存で信頼できない為、拡張子だけで判定する。
+
+    Args:
+        filename: 拡張子を含むファイル名
+        body: ファイルのバイト列
+
+    Raises:
+        UnsupportedFileTypeError: 対応していない拡張子のとき
+        EmptyDocumentError: テキストを1文字も抽出できなかったとき
     """
     suffix = PurePosixPath(filename).suffix.lower()
     if suffix in PDF_EXTENSIONS:

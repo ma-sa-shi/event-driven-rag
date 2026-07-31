@@ -1,9 +1,8 @@
-"""
-4つのLCELチェーンの組み立て
+"""Self-RAGを構成する4つのLCELチェーンの組み立て。
 
-APIキーはSSMから解決した値をコンストラクタ引数で渡す
+APIキーはSSMから解決した値をコンストラクタ引数で渡す。
 import時にモデルを生成するとキーなしの環境(api-fnやテスト)でimportが失敗する為、
-必ずファクトリ経由で生成する
+必ずファクトリ経由で生成する。
 """
 
 from dataclasses import dataclass
@@ -36,6 +35,9 @@ def build_chains(*, api_key: str, answer_model: str, utility_model: str) -> RagC
         api_key: OpenAI APIキー(SSMから解決した値)
         answer_model: 回答生成に使うモデル
         utility_model: クエリ生成・評価・失敗分析に使う軽量モデル
+
+    Returns:
+        4つのチェーンをまとめたRagChains
     """
     answer_llm = ChatOpenAI(model=answer_model, api_key=api_key)
     utility_llm = ChatOpenAI(model=utility_model, api_key=api_key)

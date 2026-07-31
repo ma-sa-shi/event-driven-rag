@@ -9,12 +9,12 @@ from tests.factories import put_attempt, put_chat
 
 @pytest.fixture
 def repository(aws):
-    """DynamoDBテーブルがセットアップされたChatRepositoryインスタンスを生成する"""
+    """DynamoDBテーブルがセットアップされたChatRepositoryインスタンスを生成する。"""
     return ChatRepository(TABLE_NAME)
 
 
 def test_create_chat_writes_keys_that_both_list_queries_use(repository):
-    """create_chatで保存したデータが、ID検索(get)とユーザー別一覧(list_by_user)の双方から取得できるか"""
+    """create_chatで保存したデータが、ID検索(get)とユーザー別一覧(list_by_user)の双方から取得できるか。"""
     repository.create_chat(
         user_id="user-a",
         chat_id="chat-1",
@@ -36,7 +36,7 @@ def test_create_chat_writes_keys_that_both_list_queries_use(repository):
 
 
 def test_put_attempt_stores_scores_as_decimal(repository):
-    """DynamoDBの仕様上floatが使えない為、ドキュメントの検索スコア(float)がDecimal型へ自動変換・保存されるか"""
+    """DynamoDBの仕様上floatが使えない為、ドキュメントの検索スコア(float)がDecimal型へ自動変換・保存されるか。"""
     repository.put_attempt(
         user_id="user-a",
         chat_id="chat-1",
@@ -71,7 +71,7 @@ def test_put_attempt_stores_scores_as_decimal(repository):
 
 
 def test_attempts_of_one_chat_are_ordered_by_attempt_no(repository):
-    """同一チャット内の複数試行が、attemptNo順に正しくソートされて取得できるか"""
+    """同一チャット内の複数試行が、attemptNo順に正しくソートされて取得できるか。"""
     for attempt_no in (0, 1):
         repository.put_attempt(
             user_id="user-a",
@@ -91,7 +91,7 @@ def test_attempts_of_one_chat_are_ordered_by_attempt_no(repository):
 
 
 def test_get_finds_chat_via_gsi_regardless_of_owner(repository, aws):
-    """getメソッドが所有者を指定しなくてもGSI1経由でチャットを取得できるか"""
+    """getメソッドが所有者を指定しなくてもGSI1経由でチャットを取得できるか。"""
     put_chat(aws.table, user_id="user-a", chat_id="chat-1")
 
     assert repository.get("chat-1")["userId"] == "user-a"
@@ -99,7 +99,7 @@ def test_get_finds_chat_via_gsi_regardless_of_owner(repository, aws):
 
 
 def test_lists_are_newest_first_and_scoped_by_user(repository, aws):
-    """全体新着一覧(list_recent)とユーザー別一覧(list_by_user)が、作成日時の新しい順で取得できるか"""
+    """全体新着一覧(list_recent)とユーザー別一覧(list_by_user)が、作成日時の新しい順で取得できるか。"""
     put_chat(aws.table, user_id="user-a", chat_id="chat-1")
     put_chat(aws.table, user_id="user-b", chat_id="chat-2")
     put_chat(aws.table, user_id="user-a", chat_id="chat-3")
@@ -117,7 +117,7 @@ def test_lists_are_newest_first_and_scoped_by_user(repository, aws):
 
 
 def test_list_attempts_returns_only_target_chat_in_order(repository, aws):
-    """list_attemptsが別チャットの試行データを混入させず、対象チャットの試行のみを正しい順序で返すか"""
+    """list_attemptsが別チャットの試行データを混入させず、対象チャットの試行のみを正しい順序で返すか。"""
     put_chat(aws.table, user_id="user-a", chat_id="chat-1")
     put_attempt(aws.table, user_id="user-a", chat_id="chat-1", attempt_no=0)
     put_attempt(aws.table, user_id="user-a", chat_id="chat-1", attempt_no=1)

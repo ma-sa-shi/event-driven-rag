@@ -24,12 +24,12 @@ client = TestClient(app)
 
 
 def headers(token: str) -> dict:
-    """指定されたトークンからAuthorizationヘッダーを生成するヘルパー関数"""
+    """指定されたトークンからAuthorizationヘッダーを生成するヘルパー関数。"""
     return {"Authorization": f"Bearer {token}"}
 
 
 def make_runtime(chains=None, documents=None) -> RagRuntime:
-    """テスト用のRagRuntimeを生成する"""
+    """テスト用のRagRuntimeを生成する。"""
     return RagRuntime(
         graph=build_graph(),
         chains=chains or build_fake_chains(),
@@ -40,9 +40,10 @@ def make_runtime(chains=None, documents=None) -> RagRuntime:
 
 @pytest.fixture
 def override_runtime():
-    """
-    テストごとにRagRuntimeを差し替え、終了時に必ず元に戻すクリーンアップ処理付きフィクスチャ
-    override_runtime()に渡される引数は_install()に渡されて実行され、テスト後にクリーンアップする
+    """テストごとにRagRuntimeを差し替え、終了時に必ず元へ戻す。
+
+    yieldする_installにRagRuntimeを渡すとdependency_overridesへ登録され、
+    テスト終了後にfixtureが登録を解除する。
     """
 
     def _install(runtime: RagRuntime) -> RagRuntime:
@@ -54,7 +55,7 @@ def override_runtime():
 
 
 def parse_sse(text: str) -> list[tuple[str, dict]]:
-    """SSE形式のレスポンス文字列をパースし、(event名, data辞書)のリストへ変換する"""
+    """SSE形式のレスポンス文字列をパースし、(event名, data辞書)のリストへ変換する。"""
     events = []
     for block in text.strip().split("\n\n"):
         lines = dict(line.split(": ", 1) for line in block.splitlines())
@@ -63,7 +64,7 @@ def parse_sse(text: str) -> list[tuple[str, dict]]:
 
 
 def post_stream(make_token, question: str = "設計方針は?", token: str | None = None):
-    """POST /api/chats/stream へリクエストを送信するヘルパー関数"""
+    """POST /api/chats/stream へリクエストを送信するヘルパー関数。"""
     return client.post(
         "/api/chats/stream",
         json={"question": question},
@@ -72,7 +73,7 @@ def post_stream(make_token, question: str = "設計方針は?", token: str | Non
 
 
 def test_sse_emits_one_update_per_node_then_done(make_token, aws, override_runtime):
-    """正常系: グラフ内の各ノード実行ごとにupdateイベントが発火し、最後にdoneイベントで終了するか"""
+    """正常系: グラフ内の各ノード実行ごとにupdateイベントが発火し、最後にdoneイベントで終了するか。"""
     override_runtime(make_runtime())
 
     res = post_stream(make_token)
@@ -103,7 +104,7 @@ def test_sse_emits_one_update_per_node_then_done(make_token, aws, override_runti
 def test_update_events_unwrap_accumulated_state_and_normalize_documents(
     make_token, aws, override_runtime
 ):
-    """updateイベントペイロードが、全ノードの累積状態ではなく、ノードが出力した差分ステートのみに整形されているか"""
+    """updateイベントペイロードが、全ノードの累積状態ではなく、ノードが出力した差分ステートのみに整形されているか。"""
     override_runtime(
         make_runtime(
             chains=build_fake_chains(queries=[["q1", "q2", "q3"]], answers=["回答本文"])
@@ -136,7 +137,7 @@ def test_update_events_unwrap_accumulated_state_and_normalize_documents(
 def test_result_is_persisted_before_done_and_readable_via_get_chat(
     make_token, aws, override_runtime
 ):
-    """doneイベント受信時点で、DynamoDBへの永続化が完了しており、GET APIから即座にチャット履歴が引けるか"""
+    """doneイベント受信時点で、DynamoDBへの永続化が完了しており、GET APIから即座にチャット履歴が引けるか。"""
     override_runtime(
         make_runtime(
             chains=build_fake_chains(queries=[["q1", "q2", "q3"]], answers=["回答本文"])
@@ -175,7 +176,7 @@ def test_result_is_persisted_before_done_and_readable_via_get_chat(
 
 
 def test_scores_are_stored_as_decimal(make_token, aws, override_runtime):
-    """DynamoDBの仕様上floatを受け付けないため、テーブル直接参照でDecimalへ安全に変換・保存されているか"""
+    """DynamoDBの仕様上floatを受け付けないため、テーブル直接参照でDecimalへ安全に変換・保存されているか。"""
     override_runtime(make_runtime())
     token = make_token(sub="user-a")
 
@@ -191,7 +192,7 @@ def test_scores_are_stored_as_decimal(make_token, aws, override_runtime):
 def test_retry_persists_one_row_per_attempt_with_failure_analysis_last(
     make_token, aws, override_runtime
 ):
-    """回答精度不足でリトライ(retryCount > 0)が発生した場合、試行ごとの履歴が保存され、最後の試行のみに失敗分析が載るか"""
+    """回答精度不足でリトライ(retryCount > 0)が発生した場合、試行ごとの履歴が保存され、最後の試行のみに失敗分析が載るか。"""
     override_runtime(
         make_runtime(
             chains=build_fake_chains(
@@ -228,7 +229,7 @@ def test_retry_persists_one_row_per_attempt_with_failure_analysis_last(
 def test_graph_failure_emits_error_event_and_persists_nothing(
     make_token, aws, override_runtime
 ):
-    """例外発生時: グラフ実行中にエラーが起きると、errorイベントを配信し、DynamoDBへ途中の不整合データが保存されないか"""
+    """例外発生時: グラフ実行中にエラーが起きると、errorイベントを配信し、DynamoDBへ途中の不整合データが保存されないか。"""
 
     class ExplodingChain:
         async def ainvoke(self, inputs, config=None):
@@ -247,7 +248,7 @@ def test_graph_failure_emits_error_event_and_persists_nothing(
 
 
 def test_requires_authentication(aws, override_runtime):
-    """未認証リクエスト: Authorizationヘッダーがない場合は401エラーを返すか"""
+    """未認証リクエスト: Authorizationヘッダーがない場合は401エラーを返すか。"""
     override_runtime(make_runtime())
 
     res = client.post("/api/chats/stream", json={"question": "質問"})
@@ -257,7 +258,7 @@ def test_requires_authentication(aws, override_runtime):
 
 @pytest.mark.parametrize("body", [{}, {"question": ""}, {"question": "あ" * 2001}])
 def test_rejects_invalid_question(make_token, aws, override_runtime, body):
-    """バリデーションエラー: リクエストボディが不正（空・文字数超過など）の場合は422エラーを返すか"""
+    """バリデーションエラー: リクエストボディが不正（空・文字数超過など）の場合は422エラーを返すか。"""
     override_runtime(make_runtime())
 
     res = client.post("/api/chats/stream", json=body, headers=headers(make_token()))

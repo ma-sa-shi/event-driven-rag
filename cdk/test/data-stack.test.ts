@@ -44,8 +44,9 @@ describe('DynamoDB', () => {
 });
 
 describe('S3', () => {
-  test('SPA配信用とドキュメント保存用の2バケットが作成される', () => {
-    template.resourceCountIs('AWS::S3::Bucket', 2);
+  // SPA配信用バケットはOACのバケットポリシーと同居させる為EdgeStackが持つ
+  test('ドキュメント保存用の1バケットが作成される', () => {
+    template.resourceCountIs('AWS::S3::Bucket', 1);
   });
 
   test('全バケットでパブリックアクセスをブロックする', () => {
@@ -66,9 +67,45 @@ describe('S3', () => {
         CorsRules: [
           {
             AllowedMethods: ['PUT', 'GET'],
+            // appDomain未指定時は配信ドメインが未確定の為、全オリジンを許可する
             AllowedOrigins: ['*'],
             AllowedHeaders: ['*'],
           },
+        ],
+      },
+    });
+  });
+});
+
+// EdgeStackを参照すると循環参照になる為、CloudFrontドメインはコンテキストで受け取る
+describe('appDomainコンテキスト', () => {
+  const appDomain = 'dxxxxxxxxxxxxx.cloudfront.net';
+  let contextTemplate: Template;
+
+  beforeAll(() => {
+    const app = new cdk.App({ context: { appDomain } });
+    contextTemplate = Template.fromStack(
+      new DataStack(app, 'TestDataStackWithDomain'),
+    );
+  });
+
+  test('CognitoのコールバックURLへCloudFrontドメインが追加される', () => {
+    contextTemplate.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      CallbackURLs: [
+        'http://localhost:5173/auth/callback',
+        `https://${appDomain}/auth/callback`,
+      ],
+      LogoutURLs: ['http://localhost:5173', `https://${appDomain}`],
+    });
+  });
+
+  test('ドキュメントバケットのCORSがCloudFrontとローカル開発に絞られる', () => {
+    contextTemplate.hasResourceProperties('AWS::S3::Bucket', {
+      CorsConfiguration: {
+        CorsRules: [
+          Match.objectLike({
+            AllowedOrigins: [`https://${appDomain}`, 'http://localhost:5173'],
+          }),
         ],
       },
     });
@@ -144,6 +181,7 @@ describe('Cognito', () => {
       AllowedOAuthFlows: ['code'],
       AllowedOAuthFlowsUserPoolClient: true,
       AllowedOAuthScopes: ['openid', 'email', 'profile'],
+      // appDomain未指定時はローカル開発のURLのみ
       CallbackURLs: ['http://localhost:5173/auth/callback'],
       LogoutURLs: ['http://localhost:5173'],
       PreventUserExistenceErrors: 'ENABLED',

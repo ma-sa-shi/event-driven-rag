@@ -108,8 +108,8 @@ describe('Function URL', () => {
     template.resourceCountIs('AWS::Lambda::Url', 2);
   });
 
-  // TODO: EdgeStack実装時にAWS_IAM + CloudFront OACへ切り替える
-  test('認証タイプは当面NONEで公開される', () => {
+  // OACのSigV4署名がCognito JWTのAuthorizationヘッダーを上書きする為、OACは使わない(ADR-0009)
+  test('認証タイプはNONEで、保護はアプリ側のJWT検証に委ねる', () => {
     const urls = template.findResources('AWS::Lambda::Url');
     for (const url of Object.values(urls)) {
       expect(url.Properties.AuthType).toBe('NONE');
