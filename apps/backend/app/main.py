@@ -7,7 +7,11 @@ from fastapi import APIRouter, FastAPI, Request
 from app.logger import logger
 from app.routers import chats, documents, users
 
-app = FastAPI()
+# 末尾スラッシュの自動リダイレクトを無効化する。
+# 307のLocationはリクエストのHostから組み立てられ、CloudFrontはOriginへのHostとして
+# Lambda Function URLのドメインを渡す為、有効なままではFunction URLがクライアントへ漏れる。
+# Function URLはOACで保護していない(ADR-0009)ため、ドメインの露出そのものを避ける。
+app = FastAPI(redirect_slashes=False)
 
 
 def _lambda_request_id(request: Request) -> str | None:

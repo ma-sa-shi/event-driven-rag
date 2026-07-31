@@ -96,13 +96,13 @@ export class AppStack extends cdk.Stack {
       },
     });
 
-    // TODO: EdgeStack実装時にAWS_IAM + CloudFront OACへ切り替える
+    // CloudFront OACはCognito JWTを含んでいるAuthorizationヘッダーを上書きする為、OACを使用しない(ADR-0009)
     this.apiFunctionUrl = this.apiFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
     });
 
     dataStack.table.grantReadWriteData(this.apiFunction);
-    // presigned URLはLambdaロールの権限で署名される為、発行対象の操作権限が必要
+    // 署名付きURLはLambdaロールの権限で署名される為、発行対象の操作権限が必要
     dataStack.documentsBucket.grantReadWrite(this.apiFunction);
     dataStack.ingestQueue.grantSendMessages(this.apiFunction);
 
@@ -127,7 +127,7 @@ export class AppStack extends cdk.Stack {
       },
     });
 
-    // TODO: EdgeStack実装時にAWS_IAM + CloudFront OACへ切り替える
+    // OACを使用しない(ADR-0009)
     this.chatFunctionUrl = this.chatFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
       invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
@@ -162,7 +162,6 @@ export class AppStack extends cdk.Stack {
           DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
           VECTOR_BUCKET_ARN: dataStack.vectorBucket.attrVectorBucketArn,
           VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
-          // Embeddingはchat-fnの検索側と同じCohereモデルを使うため、OpenAIキーは不要
           COHERE_API_KEY_PARAMETER_NAME,
           POWERTOOLS_SERVICE_NAME: "ingest",
           POWERTOOLS_LOG_LEVEL: "INFO",
@@ -190,12 +189,8 @@ export class AppStack extends cdk.Stack {
     );
     cohereApiKeyParameter.grantRead(this.ingestFunction);
 
-    new cdk.CfnOutput(this, "ApiFunctionUrl", {
-      value: this.apiFunctionUrl.url,
-    });
-    new cdk.CfnOutput(this, "ChatFunctionUrl", {
-      value: this.chatFunctionUrl.url,
-    });
+    // Function URLはCfnOutputへ出力しない。CI/CDのログへ出力しない(ADR-0009)。
+    // ただしEdgeStackからの参照でCDKが自動生成するExportには残る
     new cdk.CfnOutput(this, "EcrRepositoryUri", {
       value: this.repository.repositoryUri,
     });
