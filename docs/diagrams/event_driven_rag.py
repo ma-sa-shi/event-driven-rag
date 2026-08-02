@@ -12,7 +12,7 @@ from diagrams.aws.compute import Lambda
 from diagrams.aws.database import Dynamodb
 from diagrams.aws.integration import SQS
 from diagrams.aws.management import SystemsManagerParameterStore
-from diagrams.aws.network import CloudFront
+from diagrams.aws.network import APIGateway, CloudFront
 from diagrams.aws.security import Cognito
 from diagrams.aws.storage import S3
 from diagrams.onprem.client import Client
@@ -35,6 +35,7 @@ with Diagram(
 
     with Cluster("Edge"):
         cloudfront = CloudFront("CloudFront")
+        api_gateway = APIGateway("API Gateway\n(Cognito Authorizer)")
 
     spa_bucket = S3("S3\n(Static SPA)")
 
@@ -59,8 +60,9 @@ with Diagram(
     # 配信: CloudFrontでSPAとAPIを振り分け
     browser >> cloudfront
     cloudfront >> Edge(label="/") >> spa_bucket
-    cloudfront >> Edge(label="/api/* (Function URL)") >> api_fn
-    cloudfront >> Edge(label="/api/chats/stream (Function URL)") >> chat_fn
+    cloudfront >> Edge(label="/api/*") >> api_gateway
+    api_gateway >> Edge(label="/api/*") >> api_fn
+    api_gateway >> Edge(label="/api/chats/stream (SSE)") >> chat_fn
 
     # アップロード: 署名付きURLでS3へ直接 PUT
     browser >> Edge(label="presigned PUT", style="dashed") >> raw_bucket
