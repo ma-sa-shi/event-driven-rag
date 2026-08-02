@@ -11,6 +11,7 @@ from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import Lambda
 from diagrams.aws.database import Dynamodb
 from diagrams.aws.integration import SQS
+from diagrams.aws.management import SystemsManagerParameterStore
 from diagrams.aws.network import CloudFront
 from diagrams.aws.security import Cognito
 from diagrams.aws.storage import S3
@@ -50,16 +51,18 @@ with Diagram(
         raw_bucket = S3("S3\n(Raw Files)")
         vectors = S3("S3 Vectors\n(Embedding)")
 
+    ssm = SystemsManagerParameterStore("SSM Parameter Store\n(OpenAI / Cohere API Key)")
+
     # 認証: SPA -> Cognito Hosted UI -> Access Token
     browser >> Edge(label="Auth (Code + PKCE)", style="dashed") >> cognito
 
-    # 配信: CloudFront で SPA と API を振り分け
+    # 配信: CloudFrontでSPAとAPIを振り分け
     browser >> cloudfront
     cloudfront >> Edge(label="/") >> spa_bucket
     cloudfront >> Edge(label="/api/* (Function URL)") >> api_fn
-    cloudfront >> Edge(label="/api/* (Function URL)") >> chat_fn
+    cloudfront >> Edge(label="/api/chats/stream (Function URL)") >> chat_fn
 
-    # アップロード: presigned URL で S3 へ直接 PUT
+    # アップロード: 署名付きURLでS3へ直接 PUT
     browser >> Edge(label="presigned PUT", style="dashed") >> raw_bucket
 
     # 取込: api-fn -> SQS -> ingest-fn -> 各ストア
@@ -70,3 +73,7 @@ with Diagram(
     api_fn >> Edge(label="documents / chats") >> dynamodb
     chat_fn >> Edge(label="vector search") >> vectors
     chat_fn >> Edge(label="messages") >> dynamodb
+
+    # APIキー取得（起動時に取得しキャッシュ）
+    chat_fn >> Edge(label="API keys", style="dashed") >> ssm
+    ingest_fn >> Edge(label="API keys", style="dashed") >> ssm
