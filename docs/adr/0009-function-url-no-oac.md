@@ -1,8 +1,8 @@
 # ADR-0009: Lambda Function URLをCloudFront OACで保護しない
 
-- Status: Accepted
+- Status: Superseded by [ADR-0011](./0011-api-gateway-migration.md)
 - Date: 2026-07-29
-- Updated: 2026-07-31
+- Updated: 2026-08-02
 
 ## Context
 
@@ -73,8 +73,6 @@ Cognito JWTオーソライザによりLambdaの起動前に不正なトークン
 不採用の理由は次の2点である。
 
 - 現時点で、Lambda起動前の拒否やレート制限を必要とする事象が発生していない
-- SSEは中間層が増えるほどバッファリングやタイムアウトで壊れやすい。CloudFrontだけでもタイムアウト、KeepAlive、圧縮の3項目を調整しており、設定はarchitecture.mdの9.2に記載する。もう1層挟む複雑さに見合う利点が現時点ではない
+- SSEは中間層が増えるほどバッファリングやタイムアウトで壊れやすい。CloudFrontだけでもタイムアウト、KeepAlive、圧縮の3項目を調整しており、もう1層挟む複雑さに見合う利点が現時点ではない
 
-加えて、SSEを配信するchat-fnへ適用するにはレスポンスストリーミングが必要となるが、対応するREST APIはCDKのL2コンストラクトが未対応であり、本構成での動作を検証できていない。
-
-[REST APIが2025年11月にレスポンスストリーミングへ対応した](https://aws.amazon.com/about-aws/whats-new/2025/11/api-gateway-response-streaming-rest-apis/)ことで、技術的な障壁は下がりつつある。CDKの対応が進んだ時点で再検討する。
+加えて、SSEを配信するchat-fnへ適用するには[REST APIのレスポンスストリーミング](https://aws.amazon.com/about-aws/whats-new/2025/11/api-gateway-response-streaming-rest-apis/)が必要となるが、本構成での動作を検証できていない。費用が問題になった時点で、動作を検証したうえで再検討する。

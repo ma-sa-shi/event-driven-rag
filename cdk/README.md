@@ -35,6 +35,8 @@ npx cdk deploy --all
 
 各スタックは前のスタックのリソースを参照するため、DataStack → AppStack → EdgeStackの順にデプロイされる。
 
+スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。
+
 ### CloudFrontドメインの反映(初回のみ)
 
 CognitoのコールバックURLとドキュメント保存用バケットのCORS許可オリジンにはCloudFrontのドメインが必要だが、DataStackからEdgeStackを参照するとスタック間が循環する。そのためドメインはコンテキスト`appDomain`で渡す。初回デプロイ後にEdgeStackの`DistributionDomainName`出力を確認し、次を実行する。

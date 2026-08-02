@@ -40,7 +40,7 @@ describe('CloudFront', () => {
     expect(distributionConfig.PriceClass).toBe('PriceClass_200');
   });
 
-  test('S3とFunction URL 2つの計3オリジンを持つ', () => {
+  test('S3とAPI Gateway 2つの計3オリジンを持つ', () => {
     expect(distributionConfig.Origins).toHaveLength(3);
   });
 
@@ -70,10 +70,24 @@ describe('APIルーティング', () => {
         expect.arrayContaining(['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']),
       );
       expect(behavior.ViewerProtocolPolicy).toBe('redirect-to-https');
-      // Function URLオリジン
+      // API Gatewayオリジン
       expect(originFor(behavior.TargetOriginId)).toHaveProperty(
         'CustomOriginConfig',
       );
+    }
+  });
+
+  test('API系ビヘイビアはAppStackの同一REST APIのステージを指す(ADR-0011)', () => {
+    const apiOrigins = distributionConfig.CacheBehaviors.map((b: any) =>
+      originFor(b.TargetOriginId),
+    );
+    // タイムアウト設定違いの2オリジンだが、指す先は同じexecute-apiのドメイン
+    const [chat, api] = apiOrigins;
+    expect(JSON.stringify(chat.DomainName)).toContain('execute-api');
+    expect(JSON.stringify(chat.DomainName)).toBe(JSON.stringify(api.DomainName));
+    // ステージ名はOriginPathとして付与され、CloudFrontのパスはそのままオリジンへ渡る
+    for (const origin of apiOrigins) {
+      expect(origin.OriginPath).toBeDefined();
     }
   });
 
