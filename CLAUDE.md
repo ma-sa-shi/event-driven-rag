@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-An internal RAG chat application on AWS serverless infrastructure. The full architecture decision record (in Japanese) is in `docs/architecture.md` — read it before making design decisions. The codebase is currently an early scaffold; implementation follows the development order defined at the end of that doc.
+An internal RAG chat application on AWS serverless infrastructure. The system design document (in Japanese) is in `docs/architecture.md`, and individual architecture decision records are in `docs/adr/` — read them before making design decisions. The codebase is currently an early scaffold; implementation follows the development order defined at the end of the design doc.
 
 Three independent workspaces, each with its own dependencies:
 
@@ -22,12 +22,14 @@ make dev               # run frontend (:5173) and backend (:8000) dev servers to
 make lint              # eslint + prettier --check (frontend), ruff check + format --check (backend)
 make format            # prettier --write (frontend), ruff --fix + format (backend)
 make test              # backend pytest
-make docker-build      # build the Lambda-deployable backend image
-make docker-up         # run that image on :8000 (stop the native backend first)
+make docker-build      # build the api-fn image (web target)
+make docker-build-chat    # build the chat-fn image (chat target)
+make docker-build-worker  # build the ingest-fn image (worker target)
+make docker-up         # run the web image on :8000 (stop the native backend first)
 make docker-down
 ```
 
-Day-to-day development is native (uv/npm). Docker exists only to build the production Lambda image and verify it starts locally — the backend Dockerfile (with Lambda Web Adapter baked in) is the image deployed to all three Lambdas; per-function CMD/env differences are set later in CDK. No local Lambda emulation (SAM/LocalStack/RIE); Lambda-specific behavior is verified in the CDK-deployed dev environment.
+Day-to-day development is native (uv/npm). Docker exists only to build the production Lambda images and verify the web image starts locally — the backend Dockerfile has three final targets from one shared builder: `web` (Lambda Web Adapter + uvicorn, for api-fn), `chat` (web plus the `chat` dependency group — langgraph/langchain, for chat-fn) and `worker` (awslambdaric plain handler plus the `ingest` dependency group — pypdf, for ingest-fn); CDK selects the target and per-function env vars (see ADR-0003). No local Lambda emulation (SAM/LocalStack/RIE); Lambda-specific behavior is verified in the CDK-deployed dev environment.
 
 ### Frontend (`apps/frontend/`)
 
@@ -70,12 +72,12 @@ Target architecture (from `docs/architecture.md`; most of it is not yet implemen
   - `api-fn` — REST API (auth, document/chat lists, presigned URLs, ingest kickoff). Uses Lambda Web Adapter.
   - `chat-fn` — SSE streaming chat with LangGraph Self-RAG. Only this function loads LangChain libraries. Uses Lambda Web Adapter.
   - `ingest-fn` — text extraction, chunking, embedding, S3 Vectors registration. Plain Lambda handler (no Web Adapter), triggered by SQS with a DLQ.
-- **Upload and ingest are separate flows.** Files go directly from SPA to S3 via presigned URLs (never through Lambda). Embeddings are generated only when the user explicitly triggers ingest, which enqueues to SQS. Document status: `uploaded → processing → ingested | failed`.
+- **Upload and ingest are separate flows.** Files go directly from SPA to S3 via presigned URLs (never through Lambda). Issuing the upload URL registers the document with status `uploading`; embeddings are generated only when the user explicitly triggers ingest, which enqueues to SQS. Document status: `uploading → uploaded → processing → ingested | failed`.
 - **RAG pipeline** (chat-fn): Multi Query → Vector Search (S3 Vectors) → RRF → Cohere Rerank → LLM Generation → Self Evaluation → Retry (max 1).
 - **Auth**: Cognito Hosted UI with Authorization Code + PKCE. FastAPI only verifies JWTs via JWKS — never implement password handling or token issuance in the backend.
-- **Data**: DynamoDB single-table design (e.g. `PK=USER#123`, `SK=CHAT#20260718...`) for documents, chats, and messages. S3 Vectors metadata carries `userId`/`documentId`/`chunkId`.
+- **Data**: DynamoDB single-table design (e.g. `PK=USER#123`, `SK=CHAT#<ULID>`) for documents, chats, and messages. IDs are ULIDs; GSI1 (`GSI1PK=DOC|CHAT`, `GSI1SK=<id>`) serves both cross-user lists and ID-only lookups. S3 Vectors metadata: `documentId` (filterable), `text`/`filename` (non-filterable).
 - **Zero fixed cost is a hard constraint**: no VPC, no NAT, no ECS/EC2/Aurora, no Provisioned Concurrency.
-- **CDK is planned as four stacks**: DataStack, AppStack, EdgeStack, CiStack (currently a single placeholder `CdkStack`).
+- **CDK is planned as four stacks**: DataStack, AppStack, EdgeStack, CiStack (all but CiStack are implemented; see `cdk/README.md` for deploy prerequisites like the manual SSM SecureString setup and the `-c appDomain=` second pass). The SPA bucket lives in EdgeStack, not DataStack, because its OAC policy references the distribution.
 - **Logging**: Lambda Powertools (structured logging, metrics, tracing); propagate the request ID across services.
 
 ## Notes
