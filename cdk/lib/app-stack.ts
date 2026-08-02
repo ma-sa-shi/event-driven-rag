@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -16,6 +17,14 @@ import { DataStack } from "./data-stack";
 export const OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/openai-api-key";
 export const COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/cohere-api-key";
 
+// API Gatewayの統合タイムアウトの上限は、サービスクォータ
+// `Maximum integration timeout in milliseconds`(L-E5AE38E3)で決まる。既定は29秒である。
+// api-fnのLambdaタイムアウトは30秒だが、統合側は上限の29秒で打ち切る
+export const API_INTEGRATION_TIMEOUT = cdk.Duration.seconds(29);
+// SSEはストリーム全体が統合タイムアウトに収まる必要がある。
+// chat-fnのLambdaタイムアウト300秒に合わせるにはクォータの引き上げが要る。引き上げ後に300秒へ変更する
+export const CHAT_INTEGRATION_TIMEOUT = cdk.Duration.seconds(29);
+
 export interface AppStackProps extends cdk.StackProps {
   dataStack: DataStack;
 }
@@ -30,8 +39,7 @@ export class AppStack extends cdk.Stack {
   public readonly apiFunction: lambda.DockerImageFunction;
   public readonly chatFunction: lambda.DockerImageFunction;
   public readonly ingestFunction: lambda.DockerImageFunction;
-  public readonly apiFunctionUrl: lambda.FunctionUrl;
-  public readonly chatFunctionUrl: lambda.FunctionUrl;
+  public readonly restApi: apigateway.RestApi;
 
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
@@ -96,11 +104,6 @@ export class AppStack extends cdk.Stack {
       },
     });
 
-    // CloudFront OACはCognito JWTを含んでいるAuthorizationヘッダーを上書きする為、OACを使用しない(ADR-0009)
-    this.apiFunctionUrl = this.apiFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE,
-    });
-
     dataStack.table.grantReadWriteData(this.apiFunction);
     // 署名付きURLはLambdaロールの権限で署名される為、発行対象の操作権限が必要
     dataStack.documentsBucket.grantReadWrite(this.apiFunction);
@@ -120,17 +123,11 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: dataStack.userPoolClient.userPoolClientId,
         OPENAI_API_KEY_PARAMETER_NAME,
         COHERE_API_KEY_PARAMETER_NAME,
-        // Function URLのRESPONSE_STREAMとセットで必要(片方のみではバッファリングされる)
+        // 統合のResponseTransferMode STREAMとセットで必要(片方のみではバッファリングされる)
         AWS_LWA_INVOKE_MODE: "response_stream",
         POWERTOOLS_SERVICE_NAME: "chat",
         POWERTOOLS_LOG_LEVEL: "INFO",
       },
-    });
-
-    // OACを使用しない(ADR-0009)
-    this.chatFunctionUrl = this.chatFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE,
-      invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
     });
 
     dataStack.table.grantReadWriteData(this.chatFunction);
@@ -189,8 +186,67 @@ export class AppStack extends cdk.Stack {
     );
     cohereApiKeyParameter.grantRead(this.ingestFunction);
 
-    // Function URLはCfnOutputへ出力しない。CI/CDのログへ出力しない(ADR-0009)。
-    // ただしEdgeStackからの参照でCDKが自動生成するExportには残る
+    // --- API Gateway ---
+    // api-fnとchat-fnの唯一の公開経路。CloudFrontの`/api/*`のオリジンになる。
+    // CloudFrontのみを許可するリソースポリシーは張らず、
+    // 直接アクセスはオーソライザとスロットリングでLambda起動前に止める(ADR-0011)
+    this.restApi = new apigateway.RestApi(this, "RestApi", {
+      // CloudFrontを前段に置く為、エッジ最適化ではなくリージョナルにする
+      endpointTypes: [apigateway.EndpointType.REGIONAL],
+      deployOptions: {
+        stageName: "prod",
+        // 想定は月400〜600チャットであり、通常利用が当たる水準ではない
+        throttlingRateLimit: 20,
+        throttlingBurstLimit: 40,
+      },
+    });
+
+    // Lambda起動前にJWTを検証する。FastAPI側の検証は残し、認可(誰のデータか)はアプリで行う(ADR-0004)
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this,
+      "CognitoAuthorizer",
+      { cognitoUserPools: [dataStack.userPool] },
+    );
+    const authorized: apigateway.MethodOptions = {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      // Cognitoオーソライザは既定でIDトークンとして検証する為、
+      // アクセストークンを送る本システムでは指定しないと全て401になる。
+      // authorizationScopesを指定するとアクセストークンのscopeクレームで検証する。
+      // SPAが要求するスコープはopenid / email / profileであり、共通するopenidを要求する
+      authorizationScopes: ["openid"],
+    };
+
+    const apiIntegration = new apigateway.LambdaIntegration(this.apiFunction, {
+      timeout: API_INTEGRATION_TIMEOUT,
+    });
+    // SSEはSTREAMを指定しないとレスポンス全体が揃うまで送出されない
+    const chatIntegration = new apigateway.LambdaIntegration(
+      this.chatFunction,
+      {
+        responseTransferMode: apigateway.ResponseTransferMode.STREAM,
+        timeout: CHAT_INTEGRATION_TIMEOUT,
+      },
+    );
+
+    // FastAPIのルートは全て`/api`配下にある(CloudFrontの`/api/*`と一致させる為)
+    const apiResource = this.restApi.root.addResource("api");
+
+    // ヘルスチェックは無認証。オーソライザを付けない唯一のルート
+    apiResource.addResource("health").addMethod("GET", apiIntegration);
+
+    // `/api/chats`直下にchat-fnとapi-fnの両方のルートがある為、
+    // `/api/{proxy+}`だけでは足りず、chats配下を明示的に分岐させる。
+    // API Gatewayはグリーディパスより具体的なリソースを優先する
+    const chats = apiResource.addResource("chats");
+    chats.addResource("stream").addMethod("POST", chatIntegration, authorized);
+    chats.addMethod("ANY", apiIntegration, authorized);
+    chats.addResource("{proxy+}").addMethod("ANY", apiIntegration, authorized);
+
+    apiResource
+      .addResource("{proxy+}")
+      .addMethod("ANY", apiIntegration, authorized);
+
     new cdk.CfnOutput(this, "EcrRepositoryUri", {
       value: this.repository.repositoryUri,
     });
