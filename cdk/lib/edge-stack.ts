@@ -12,7 +12,7 @@ export interface EdgeStackProps extends cdk.StackProps {
 /**
  * 配信層スタック。
  * 単一のCloudFrontディストリビューションから、SPAの静的ファイルをS3へ、
- * `/api/*`をLambda Function URLへ振り分ける。
+ * `/api/*`をAPI Gatewayへ振り分ける。
  * SPA配信用バケットは、OACのバケットポリシーがディストリビューションARNを参照し
  * スタック間の循環参照になる為、DataStackではなく本スタックで保持する。
  */
@@ -37,21 +37,25 @@ export class EdgeStack extends cdk.Stack {
       this.spaBucket,
     );
 
+    // どちらもAppStackの同一のREST APIを指す。
+    // SSEとRESTでタイムアウト要件が異なる為、設定違いの2オリジンとして登録する
+
     // SSEのストリーミングを中断させない為のタイムアウト設定(設計書9.2)
-    const chatOrigin = new origins.FunctionUrlOrigin(appStack.chatFunctionUrl, {
+    const chatOrigin = new origins.RestApiOrigin(appStack.restApi, {
       readTimeout: cdk.Duration.seconds(60),
       keepaliveTimeout: cdk.Duration.seconds(20),
     });
 
-    const apiOrigin = new origins.FunctionUrlOrigin(appStack.apiFunctionUrl, {
+    const apiOrigin = new origins.RestApiOrigin(appStack.restApi, {
       // api-fnのLambdaタイムアウトに合わせる
       readTimeout: cdk.Duration.seconds(30),
       keepaliveTimeout: cdk.Duration.seconds(20),
     });
 
     // APIレスポンスはキャッシュせず、Authorizationヘッダー(Cognito JWT)を素通しする。
+    // Authorizationは、API GatewayのCognitoオーソライザとFastAPIのJWT検証の両方が読む。
     // ALL_VIEWER_EXCEPT_HOST_HEADERはHostだけを落とす。
-    // Function URLはHostでルーティングする為、ビューワーのHostを転送すると到達できない
+    // API GatewayはHostでAPIを識別する為、ビューワーのHostを転送すると到達できない
     const apiBehavior = {
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,

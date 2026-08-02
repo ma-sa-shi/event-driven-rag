@@ -68,6 +68,32 @@ exports[`スナップショット 1`] = `
         "Ref": "IngestFunction4B2F2EB2",
       },
     },
+    "RestApiEndpoint0551178A": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "RestApi0C43BF4B",
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region",
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "RestApiDeploymentStageprod3855DE66",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
   },
   "Parameters": {
     "BootstrapVersion": {
@@ -85,7 +111,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:e8007ff30874904faeca060387039fafe01829225cd965549789bf79e7c2c457",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:aa8af4345dd2072921000bd79c7230d11fb6f910f5f8cc49657aaef8a0258984",
           },
         },
         "Environment": {
@@ -120,18 +146,6 @@ exports[`スナップショット 1`] = `
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "ApiFunctionFunctionUrl73AD62DC": {
-      "Properties": {
-        "AuthType": "NONE",
-        "TargetFunctionArn": {
-          "Fn::GetAtt": [
-            "ApiFunctionCE271BD4",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Url",
     },
     "ApiFunctionServiceRole52B9747B": {
       "Properties": {
@@ -276,34 +290,6 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "ApiFunctioninvokefunctionB5A175E4": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ApiFunctionCE271BD4",
-            "Arn",
-          ],
-        },
-        "InvokedViaFunctionUrl": true,
-        "Principal": "*",
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "ApiFunctioninvokefunctionurl0B8A0798": {
-      "Properties": {
-        "Action": "lambda:InvokeFunctionUrl",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ApiFunctionCE271BD4",
-            "Arn",
-          ],
-        },
-        "FunctionUrlAuthType": "NONE",
-        "Principal": "*",
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
     "ChatFunction3D7C447E": {
       "DependsOn": [
         "ChatFunctionServiceRoleDefaultPolicy8AB4563A",
@@ -312,7 +298,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:145a71e768bab4a57b9f5e5cfd3c8d628ffa4c092916985c148d5fe7b9830046",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:482b32d67a421eadc32275d83244839741a0a81babf527ce447d37562ba527a4",
           },
         },
         "Environment": {
@@ -350,19 +336,6 @@ exports[`スナップショット 1`] = `
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
-    },
-    "ChatFunctionFunctionUrl85FDC611": {
-      "Properties": {
-        "AuthType": "NONE",
-        "InvokeMode": "RESPONSE_STREAM",
-        "TargetFunctionArn": {
-          "Fn::GetAtt": [
-            "ChatFunction3D7C447E",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Url",
     },
     "ChatFunctionServiceRole544D50A9": {
       "Properties": {
@@ -534,33 +507,21 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
-    "ChatFunctioninvokefunctionE31317E4": {
+    "CognitoAuthorizerF3215DBC": {
       "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ChatFunction3D7C447E",
-            "Arn",
-          ],
+        "IdentitySource": "method.request.header.Authorization",
+        "Name": "TestAppStackCognitoAuthorizerA68B6ABC",
+        "ProviderARNs": [
+          {
+            "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttUserPool6BA7E5F2Arn686ACC00",
+          },
+        ],
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
         },
-        "InvokedViaFunctionUrl": true,
-        "Principal": "*",
+        "Type": "COGNITO_USER_POOLS",
       },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "ChatFunctioninvokefunctionurlE2D45C7F": {
-      "Properties": {
-        "Action": "lambda:InvokeFunctionUrl",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ChatFunction3D7C447E",
-            "Arn",
-          ],
-        },
-        "FunctionUrlAuthType": "NONE",
-        "Principal": "*",
-      },
-      "Type": "AWS::Lambda::Permission",
+      "Type": "AWS::ApiGateway::Authorizer",
     },
     "IngestFunction4B2F2EB2": {
       "DependsOn": [
@@ -570,7 +531,7 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "Code": {
           "ImageUri": {
-            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:af13f19b16b2443c7d0505dae5828049984c19f5331b5fdb879f8744c89b7c38",
+            "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:21353185e5c874267d18e5e78c474bb6125a921e259efb8bd73d746b3ffa7999",
           },
         },
         "Environment": {
@@ -801,6 +762,810 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::ECR::Repository",
       "UpdateReplacePolicy": "Delete",
+    },
+    "RestApi0C43BF4B": {
+      "Properties": {
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL",
+          ],
+        },
+        "Name": "RestApi",
+      },
+      "Type": "AWS::ApiGateway::RestApi",
+    },
+    "RestApiAccount7C83CF5A": {
+      "DeletionPolicy": "Retain",
+      "DependsOn": [
+        "RestApi0C43BF4B",
+      ],
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "RestApiCloudWatchRoleE3ED6605",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RestApiCloudWatchRoleE3ED6605": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "RestApiDeployment180EC50301fc7f2f1a23e1df66f397976e66adff": {
+      "DependsOn": [
+        "RestApiapiproxyANY9A5715D2",
+        "RestApiapiproxyC73394C6",
+        "RestApiapichatsproxyANYF577872D",
+        "RestApiapichatsproxy8BE0C796",
+        "RestApiapichatsANY98A78A6F",
+        "RestApiapichatsEC7A95CB",
+        "RestApiapichatsstreamPOSTCD0F972A",
+        "RestApiapichatsstream378225E4",
+        "RestApiapihealthGETEDF5EB9C",
+        "RestApiapihealthF8B286C6",
+        "RestApiapiC55947A1",
+      ],
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "Description": "Automatically created by the RestApi construct",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Deployment",
+    },
+    "RestApiDeploymentStageprod3855DE66": {
+      "DependsOn": [
+        "RestApiAccount7C83CF5A",
+      ],
+      "Properties": {
+        "DeploymentId": {
+          "Ref": "RestApiDeployment180EC50301fc7f2f1a23e1df66f397976e66adff",
+        },
+        "MethodSettings": [
+          {
+            "DataTraceEnabled": false,
+            "HttpMethod": "*",
+            "ResourcePath": "/*",
+            "ThrottlingBurstLimit": 40,
+            "ThrottlingRateLimit": 20,
+          },
+        ],
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+        "StageName": "prod",
+      },
+      "Type": "AWS::ApiGateway::Stage",
+    },
+    "RestApiapiC55947A1": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "RestApi0C43BF4B",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "api",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "RestApiapichatsANY98A78A6F": {
+      "Properties": {
+        "AuthorizationScopes": [
+          "openid",
+        ],
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "ApiFunctionCE271BD4",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "RestApiapichatsEC7A95CB",
+        },
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "RestApiapichatsANYApiPermissionTestAppStackRestApi0C913C5DANYapichats0E5BD9D7": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/",
+              {
+                "Ref": "RestApiDeploymentStageprod3855DE66",
+              },
+              "/*/api/chats",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsANYApiPermissionTestTestAppStackRestApi0C913C5DANYapichats5AAD61B8": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/test-invoke-stage/*/api/chats",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsEC7A95CB": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "RestApiapiC55947A1",
+        },
+        "PathPart": "chats",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "RestApiapichatsproxy8BE0C796": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "RestApiapichatsEC7A95CB",
+        },
+        "PathPart": "{proxy+}",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "RestApiapichatsproxyANYApiPermissionTestAppStackRestApi0C913C5DANYapichatsproxyE3EE8E40": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/",
+              {
+                "Ref": "RestApiDeploymentStageprod3855DE66",
+              },
+              "/*/api/chats/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsproxyANYApiPermissionTestTestAppStackRestApi0C913C5DANYapichatsproxy5F33138F": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/test-invoke-stage/*/api/chats/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsproxyANYF577872D": {
+      "Properties": {
+        "AuthorizationScopes": [
+          "openid",
+        ],
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "ApiFunctionCE271BD4",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "RestApiapichatsproxy8BE0C796",
+        },
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "RestApiapichatsstream378225E4": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "RestApiapichatsEC7A95CB",
+        },
+        "PathPart": "stream",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "RestApiapichatsstreamPOSTApiPermissionTestAppStackRestApi0C913C5DPOSTapichatsstreamE3C31220": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ChatFunction3D7C447E",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/",
+              {
+                "Ref": "RestApiDeploymentStageprod3855DE66",
+              },
+              "/POST/api/chats/stream",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsstreamPOSTApiPermissionTestTestAppStackRestApi0C913C5DPOSTapichatsstream3F26D3F9": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ChatFunction3D7C447E",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/test-invoke-stage/POST/api/chats/stream",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapichatsstreamPOSTCD0F972A": {
+      "Properties": {
+        "AuthorizationScopes": [
+          "openid",
+        ],
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "POST",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "ResponseTransferMode": "STREAM",
+          "TimeoutInMillis": 29000,
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2021-11-15/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "ChatFunction3D7C447E",
+                    "Arn",
+                  ],
+                },
+                "/response-streaming-invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "RestApiapichatsstream378225E4",
+        },
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "RestApiapihealthF8B286C6": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "RestApiapiC55947A1",
+        },
+        "PathPart": "health",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "RestApiapihealthGETApiPermissionTestAppStackRestApi0C913C5DGETapihealth732E4509": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/",
+              {
+                "Ref": "RestApiDeploymentStageprod3855DE66",
+              },
+              "/GET/api/health",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapihealthGETApiPermissionTestTestAppStackRestApi0C913C5DGETapihealth52AFE297": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/test-invoke-stage/GET/api/health",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapihealthGETEDF5EB9C": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "GET",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "ApiFunctionCE271BD4",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "RestApiapihealthF8B286C6",
+        },
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "RestApiapiproxyANY9A5715D2": {
+      "Properties": {
+        "AuthorizationScopes": [
+          "openid",
+        ],
+        "AuthorizationType": "COGNITO_USER_POOLS",
+        "AuthorizerId": {
+          "Ref": "CognitoAuthorizerF3215DBC",
+        },
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "TimeoutInMillis": 29000,
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "ApiFunctionCE271BD4",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "RestApiapiproxyC73394C6",
+        },
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "RestApiapiproxyANYApiPermissionTestAppStackRestApi0C913C5DANYapiproxy17B87F94": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/",
+              {
+                "Ref": "RestApiDeploymentStageprod3855DE66",
+              },
+              "/*/api/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapiproxyANYApiPermissionTestTestAppStackRestApi0C913C5DANYapiproxyA33EA541": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ApiFunctionCE271BD4",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "RestApi0C43BF4B",
+              },
+              "/test-invoke-stage/*/api/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "RestApiapiproxyC73394C6": {
+      "Properties": {
+        "ParentId": {
+          "Ref": "RestApiapiC55947A1",
+        },
+        "PathPart": "{proxy+}",
+        "RestApiId": {
+          "Ref": "RestApi0C43BF4B",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
     },
   },
   "Rules": {

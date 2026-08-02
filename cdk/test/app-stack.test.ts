@@ -103,27 +103,139 @@ describe('Lambda', () => {
   });
 });
 
-describe('Function URL', () => {
-  test('api-fnとchat-fnの2つだけ作成される', () => {
-    template.resourceCountIs('AWS::Lambda::Url', 2);
+describe('API Gateway', () => {
+  // リソースの論理IDからパス(PathPart)を組み立てるヘルパー
+  function resourcePaths() {
+    const resources = template.findResources('AWS::ApiGateway::Resource');
+    const paths: Record<string, string> = {};
+    const pathOf = (logicalId: string): string => {
+      const props = resources[logicalId].Properties;
+      const parent = props.ParentId.Ref;
+      // ParentIdがRestApiのRootResourceIdを指す場合はFn::GetAttになりRefを持たない
+      return parent === undefined
+        ? `/${props.PathPart}`
+        : `${pathOf(parent)}/${props.PathPart}`;
+    };
+    for (const logicalId of Object.keys(resources)) {
+      paths[logicalId] = pathOf(logicalId);
+    }
+    return paths;
+  }
+
+  // メソッドをパス文字列で引けるようにする
+  function methodsByPath() {
+    const paths = resourcePaths();
+    const methods = Object.values(template.findResources('AWS::ApiGateway::Method'));
+    return new Map(
+      methods.map((m) => [
+        `${m.Properties.HttpMethod} ${paths[m.Properties.ResourceId.Ref]}`,
+        m.Properties,
+      ]),
+    );
+  }
+
+  test('Function URLは作成されず、公開経路はREST APIだけになる(ADR-0011)', () => {
+    template.resourceCountIs('AWS::Lambda::Url', 0);
+    template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
   });
 
-  // OACのSigV4署名がCognito JWTのAuthorizationヘッダーを上書きする為、OACは使わない(ADR-0009)
-  test('認証タイプはNONEで、保護はアプリ側のJWT検証に委ねる', () => {
-    const urls = template.findResources('AWS::Lambda::Url');
-    for (const url of Object.values(urls)) {
-      expect(url.Properties.AuthType).toBe('NONE');
-    }
-    template.hasResourceProperties('AWS::Lambda::Permission', {
-      Action: 'lambda:InvokeFunctionUrl',
-      Principal: '*',
-      FunctionUrlAuthType: 'NONE',
+  // CloudFrontを前段に置く為、エッジ最適化ではなくリージョナル
+  test('エンドポイントはリージョナル', () => {
+    template.hasResourceProperties('AWS::ApiGateway::RestApi', {
+      EndpointConfiguration: { Types: ['REGIONAL'] },
     });
   });
 
-  test('chat-fnのFunction URLはRESPONSE_STREAMを有効化する', () => {
-    template.hasResourceProperties('AWS::Lambda::Url', {
-      InvokeMode: 'RESPONSE_STREAM',
+  test('FastAPIのルート構成に対応したリソースを持つ', () => {
+    expect(new Set(Object.values(resourcePaths()))).toEqual(
+      new Set([
+        '/api',
+        '/api/health',
+        '/api/chats',
+        '/api/chats/stream',
+        '/api/chats/{proxy+}',
+        '/api/{proxy+}',
+      ]),
+    );
+  });
+
+  test('全メソッドがLambdaプロキシ統合で接続される', () => {
+    for (const props of methodsByPath().values()) {
+      expect(props.Integration.Type).toBe('AWS_PROXY');
+      expect(props.Integration.IntegrationHttpMethod).toBe('POST');
+    }
+  });
+
+  test('SSEのルートだけがchat-fnへストリーミングで統合される', () => {
+    const methods = methodsByPath();
+    const stream = methods.get('POST /api/chats/stream');
+    expect(stream).toBeDefined();
+    // STREAMを指定しないとレスポンス全体が揃うまで送出されない
+    expect(stream.Integration.ResponseTransferMode).toBe('STREAM');
+
+    for (const [key, props] of methods) {
+      if (key === 'POST /api/chats/stream') continue;
+      expect(props.Integration.ResponseTransferMode).toBeUndefined();
+    }
+  });
+
+  test('統合タイムアウトがサービスクォータの上限を超えない', () => {
+    // 上限を超えるとデプロイがInvalidRequestで失敗する。
+    // クォータ`Maximum integration timeout in milliseconds`(L-E5AE38E3)の既定値
+    const quotaLimitMillis = 29_000;
+    for (const props of methodsByPath().values()) {
+      expect(props.Integration.TimeoutInMillis).toBeLessThanOrEqual(
+        quotaLimitMillis,
+      );
+    }
+  });
+
+  test('SSEはchat-fn、それ以外はapi-fnへ振り分ける', () => {
+    const methods = methodsByPath();
+    const uriOf = (key: string) =>
+      JSON.stringify(methods.get(key)!.Integration.Uri);
+    const chatUri = uriOf('POST /api/chats/stream');
+    const apiUri = uriOf('ANY /api/{proxy+}');
+    expect(chatUri).not.toBe(apiUri);
+    // chats配下のGETはapi-fnが処理する
+    expect(uriOf('ANY /api/chats')).toBe(apiUri);
+    expect(uriOf('ANY /api/chats/{proxy+}')).toBe(apiUri);
+    expect(uriOf('GET /api/health')).toBe(apiUri);
+  });
+
+  test('Cognitoオーソライザが/api/health以外の全ルートへ適用される', () => {
+    template.resourceCountIs('AWS::ApiGateway::Authorizer', 1);
+    template.hasResourceProperties('AWS::ApiGateway::Authorizer', {
+      Type: 'COGNITO_USER_POOLS',
+      // FastAPIへ渡るBearerトークンと同じヘッダーをオーソライザも読む
+      IdentitySource: 'method.request.header.Authorization',
+    });
+
+    for (const [key, props] of methodsByPath()) {
+      if (key === 'GET /api/health') {
+        expect(props.AuthorizationType).toBe('NONE');
+        expect(props.AuthorizerId).toBeUndefined();
+      } else {
+        expect(props.AuthorizationType).toBe('COGNITO_USER_POOLS');
+        expect(props.AuthorizerId).toBeDefined();
+        // 未指定だとオーソライザがIDトークンとして検証し、
+        // アクセストークンを送る本システムでは全て401になる
+        expect(props.AuthorizationScopes).toEqual(['openid']);
+      }
+    }
+  });
+
+  test('ステージにスロットリングの上限が設定される', () => {
+    template.hasResourceProperties('AWS::ApiGateway::Stage', {
+      StageName: 'prod',
+      MethodSettings: Match.arrayWith([
+        Match.objectLike({
+          HttpMethod: '*',
+          ResourcePath: '/*',
+          ThrottlingRateLimit: 20,
+          ThrottlingBurstLimit: 40,
+        }),
+      ]),
     });
   });
 });
