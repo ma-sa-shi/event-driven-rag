@@ -183,13 +183,76 @@ exports[`スナップショット 1`] = `
                     "Fn::Split": [
                       "/",
                       {
-                        "Fn::ImportValue": "TestAppStack:ExportsOutputFnGetAttChatFunctionFunctionUrl85FDC611FunctionUrlCE6F43FC",
+                        "Fn::Join": [
+                          "",
+                          [
+                            "https://",
+                            {
+                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                            },
+                            ".execute-api.",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ".",
+                            {
+                              "Ref": "AWS::URLSuffix",
+                            },
+                            "/",
+                            {
+                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                            },
+                            "/",
+                          ],
+                        ],
                       },
                     ],
                   },
                 ],
               },
               "Id": "TestEdgeStackDistributionOrigin217FA1382",
+              "OriginPath": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "/",
+                    {
+                      "Fn::Select": [
+                        3,
+                        {
+                          "Fn::Split": [
+                            "/",
+                            {
+                              "Fn::Join": [
+                                "",
+                                [
+                                  "https://",
+                                  {
+                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                                  },
+                                  ".execute-api.",
+                                  {
+                                    "Ref": "AWS::Region",
+                                  },
+                                  ".",
+                                  {
+                                    "Ref": "AWS::URLSuffix",
+                                  },
+                                  "/",
+                                  {
+                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                                  },
+                                  "/",
+                                ],
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                ],
+              },
             },
             {
               "CustomOriginConfig": {
@@ -207,13 +270,76 @@ exports[`スナップショット 1`] = `
                     "Fn::Split": [
                       "/",
                       {
-                        "Fn::ImportValue": "TestAppStack:ExportsOutputFnGetAttApiFunctionFunctionUrl73AD62DCFunctionUrlC0C6CE5A",
+                        "Fn::Join": [
+                          "",
+                          [
+                            "https://",
+                            {
+                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                            },
+                            ".execute-api.",
+                            {
+                              "Ref": "AWS::Region",
+                            },
+                            ".",
+                            {
+                              "Ref": "AWS::URLSuffix",
+                            },
+                            "/",
+                            {
+                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                            },
+                            "/",
+                          ],
+                        ],
                       },
                     ],
                   },
                 ],
               },
               "Id": "TestEdgeStackDistributionOrigin3813095BB",
+              "OriginPath": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "/",
+                    {
+                      "Fn::Select": [
+                        3,
+                        {
+                          "Fn::Split": [
+                            "/",
+                            {
+                              "Fn::Join": [
+                                "",
+                                [
+                                  "https://",
+                                  {
+                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                                  },
+                                  ".execute-api.",
+                                  {
+                                    "Ref": "AWS::Region",
+                                  },
+                                  ".",
+                                  {
+                                    "Ref": "AWS::URLSuffix",
+                                  },
+                                  "/",
+                                  {
+                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                                  },
+                                  "/",
+                                ],
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                ],
+              },
             },
           ],
           "PriceClass": "PriceClass_200",
