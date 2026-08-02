@@ -9,7 +9,7 @@ from functools import lru_cache
 import boto3
 
 
-# Lambda実行環境が生きている限り再取得しない(呼び出し回数と初期化レイテンシの削減)
+# 実行環境が再利用される間は再取得しない(呼び出し回数と初期化レイテンシの削減)
 @lru_cache
 def get_parameter(name: str) -> str:
     res = boto3.client("ssm").get_parameter(Name=name, WithDecryption=True)
