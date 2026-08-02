@@ -30,7 +30,8 @@
 - [9. インフラ設計](#9-インフラ設計)
   - [9.1 CDKスタック構成](#91-cdkスタック構成)
   - [9.2 CloudFront](#92-cloudfront)
-  - [9.3 シークレット管理](#93-シークレット管理)
+  - [9.3 API Gateway](#93-api-gateway)
+  - [9.4 シークレット管理](#94-シークレット管理)
 - [10. 運用設計](#10-運用設計)
   - [10.1 ロギング・モニタリング](#101-ロギングモニタリング)
   - [10.2 CI/CD](#102-cicd)
@@ -85,8 +86,8 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
         Cognito       CloudFront          S3 (Documents)
                ┌───────────┴───────────┐
                ▼                       ▼
-        S3 (Static SPA)     Lambda Function URL
-                            (/api/*)
+        S3 (Static SPA)       API Gateway
+                            (/api/*, Authorizer)
                                  │
                ┌─────────────────┴─────────────────┐
                ▼                                   ▼
@@ -104,7 +105,7 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
  DynamoDB     S3     S3 Vectors
 ```
 
-ブラウザはまずCognitoのHosted UIで認証を行う。以降はCloudFrontを経由し、SPAの静的ファイル取得とAPI呼び出しを行う。パスが`/api/*`のリクエストはLambda Function URLへ転送され、REST APIはapi-fn、ストリーミングチャットはchat-fnが処理する。
+ブラウザはまずCognitoのHosted UIで認証を行う。以降はCloudFrontを経由し、SPAの静的ファイル取得とAPI呼び出しを行う。パスが`/api/*`のリクエストはAPI Gatewayへ転送され、REST APIはapi-fn、ストリーミングチャットはchat-fnが処理する。API GatewayのCognitoオーソライザが、Lambdaを起動する前にアクセストークンを検証する。
 
 ファイルは署名付きURLを使ってブラウザからS3へ直接アップロードする。ドキュメントの取込はapi-fnがSQSへメッセージを送信し、ingest-fnが非同期で実行してDynamoDB、S3、S3 Vectorsへ書き込む。
 
@@ -439,7 +440,7 @@ SPA配信用S3バケットは例外としてEdgeStackで管理する。アクセ
 
 #### appDomainによる循環参照の回避
 
-スタック間の依存は EdgeStack → AppStack → DataStack の一方向である。CloudFrontはFunction URLを参照し、LambdaはDynamoDBやS3を参照する。
+スタック間の依存は EdgeStack → AppStack → DataStack の一方向である。CloudFrontはAPI Gatewayを参照し、LambdaはDynamoDBやS3を参照する。
 
 一方、CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンには、CloudFrontのドメイン名が必要となる。ここでDataStackがEdgeStackを参照すると、上記の依存と合わせて循環する。
 
@@ -453,29 +454,50 @@ CloudFrontはパスに応じて3つのOriginへ振り分ける。
 
 ```text
 /                  → S3
-/api/chats/stream  → Lambda Function URL (chat-fn)
-/api/*             → Lambda Function URL (api-fn)
+/api/chats/stream  → API Gateway (chat-fn)
+/api/*             → API Gateway (api-fn)
 ```
 
-ルートパスはSPAの静的ファイルを配信するS3へルーティングする。`/api/*`はLambda Function URLへ送るが、SSEのチャットとその他のRESTでタイムアウト要件が異なるため、`/api/chats/stream`を先に評価してchat-fnへ分岐させる。
+ルートパスはSPAの静的ファイルを配信するS3へルーティングする。`/api/*`はAPI Gatewayへ送る。API側の2つのビヘイビアは同一のAPI Gatewayを指すが、SSEのチャットとその他のRESTでタイムアウトと圧縮の要件が異なるため、設定違いのOriginとして分け、`/api/chats/stream`を先に評価する。バックエンドのどちらのLambdaへ渡すかはAPI Gatewayが決める。
 
-API向けのビヘイビアはキャッシュを無効にし、`Host`以外の全ビューワーヘッダーをOriginへ転送する。これによりCognitoのアクセストークンを載せた`Authorization`ヘッダーがバックエンドへ届く。Function URLはOrigin Access Controlで保護しない。OACのSigV4署名が同じ`Authorization`ヘッダーを使うためBearerトークン認証と両立せず、保護はFastAPIのJWT検証に一本化する（[ADR-0009](./adr/0009-function-url-no-oac.md)）。
+API向けのビヘイビアはキャッシュを無効にし、`Host`以外の全ビューワーヘッダーをOriginへ転送する。これによりCognitoのアクセストークンを載せた`Authorization`ヘッダーが、API Gatewayのオーソライザとバックエンドの両方へ届く。`Host`を落とすのは、API GatewayがHostでAPIを識別するためである。
 
-SSEのストリーミングは、Lambda、Lambda Web Adapter、CloudFrontのいずれかがレスポンスをバッファリングすると成立しない。chat-fnの経路へ次の設定を行う。
+SSEのストリーミングは、Lambda、Lambda Web Adapter、API Gateway、CloudFrontのいずれかがレスポンスをバッファリングすると成立しない。chat-fnの経路へ次の設定を行う。
 
 | 対象 | 設定 | 理由 |
 |------|------|------|
-| Function URL | Invoke Mode: RESPONSE_STREAM | 既定の`BUFFERED`ではレスポンス全体が揃うまで送出されず、ストリーミングにならない |
 | chat-fn | `AWS_LWA_INVOKE_MODE=response_stream` | Lambda Web Adapterをストリーミングモードで動作させる |
+| API Gateway | Response Transfer Mode: STREAM | 既定の`BUFFERED`ではレスポンス全体が揃うまで送出されず、ストリーミングにならない |
+| API Gateway | 統合タイムアウト: 29秒 | ストリーム全体の上限。サービスクォータの既定値であり、引き上げの承認後に300秒へ変更する |
 | CloudFront | Origin Response Timeout: 60秒 | イベントとイベントの間隔の上限。ストリーム全体の上限ではない |
 | CloudFront | Origin KeepAlive Timeout: 20秒 | Originとの接続を維持し、イベントごとの再接続を避ける |
 | CloudFront | 圧縮: 無効 | レスポンスをバッファリングし、イベントの到達を遅らせるため |
 
-タイムアウトを60秒へ延長し、KeepAliveでOriginとの接続を維持する。圧縮はレスポンスをバッファリングしイベントの到達を遅らせるため無効にする。
+ストリーム全体の上限は統合タイムアウトであり、CloudFrontの60秒はイベント間隔の上限として働く。KeepAliveはOriginとの接続を維持し、イベントごとの再接続を避ける。
 
 SPAはクライアントサイドルーティングを行うため、`/chats/{chatId}`のようなパスに対応するオブジェクトはS3に存在しない。拡張子を持たないリクエストのURIを`/index.html`へ書き換えるCloudFront Functionを、S3向けのビヘイビアにのみ適用する。CloudFrontのカスタムエラーレスポンスはディストリビューション全体へ適用され、APIが返すエラーレスポンスまで書き換えてしまうため利用しない。
 
-### 9.3 シークレット管理
+### 9.3 API Gateway
+
+API Gatewayはapi-fnとchat-fnの唯一の公開経路であり、CloudFrontの`/api/*`のOriginとなる。エンドポイントは、前段にCloudFrontを置くためリージョナルとする。Lambda Function URLを使わない理由は[ADR-0011](./adr/0011-api-gateway-migration.md)に記載する。
+
+役割は、Lambdaを起動する前に不正なリクエストを止めることである。Cognito User Poolオーソライザが`Authorization`ヘッダーのアクセストークンを検証し、無効なトークンのリクエストはLambdaへ到達しない。オーソライザを適用しないのは無認証の`/api/health`のみである。各メソッドには認可スコープ`openid`を指定する。指定しない場合、オーソライザはトークンをIDトークンとして検証するため、アクセストークンを送る本システムでは全て401となる。ステージにはレート20リクエスト/秒、バースト40リクエストのスロットリングを設定し、有効なトークンを用いた大量リクエストにも上限を設ける。
+
+リソースは、FastAPIのルート構成に合わせて次のとおり定義する。
+
+```text
+/api/health          GET   → api-fn (認可なし)
+/api/chats/stream    POST  → chat-fn
+/api/chats           ANY   → api-fn
+/api/chats/{proxy+}  ANY   → api-fn
+/api/{proxy+}        ANY   → api-fn
+```
+
+統合はLambdaプロキシ統合を用い、パスの解決はFastAPIが行う。`/api/chats`配下にはchat-fnとapi-fnの両方のルートがあるため、グリーディパスだけでは振り分けられない。API Gatewayはグリーディパスより具体的なリソースを優先するため、`/api/chats/stream`を個別のリソースとして定義し、残りをグリーディパスで受ける。
+
+オーソライザによる検証はトークンの正当性までであり、要求されたドキュメントやチャットが本人のものかという認可はapi-fnとchat-fnで判定する。バックエンドのJWT検証は残す。
+
+### 9.4 シークレット管理
 
 OpenAIとCohereのAPIキーは、SSM Parameter StoreのSecureStringパラメータで管理する。値はLambdaの初回参照時に取得し、実行環境が再利用される間はキャッシュした値を用いる。
 
@@ -542,6 +564,7 @@ ADR-0001で置いた前提である月400件から600件のチャットを想定
 | Service | Cost |
 |---------|------:|
 | Lambda | <$1 |
+| API Gateway | <$0.1 |
 | DynamoDB | ~$0.5 |
 | S3 | ~$0.5 |
 | S3 Vectors | ~$0.5 |
@@ -574,8 +597,9 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0006: チャット永続化をDynamoDBシングルテーブルへ差し替え](./adr/0006-dynamodb-single-table.md)
 - [ADR-0007: 署名付きURLによる直接アップロードと取込の分離](./adr/0007-upload-ingest-separation.md)
 - [ADR-0008: APIキー管理にSSM Parameter Storeを採用](./adr/0008-ssm-parameter-store.md)
-- [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md)
+- [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md) — ADR-0011により失効
 - [ADR-0010: トークンをlocalStorageへ保存する](./adr/0010-token-storage-localstorage.md)
+- [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
 
 認証の詳細設計は次のドキュメントで管理する。
 
