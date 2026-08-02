@@ -18,8 +18,8 @@ def test_health():
 def test_trailing_slash_does_not_redirect(path):
     """末尾スラッシュを307で誘導しない。
 
-    307のLocationはHostから組み立てられ、CloudFront経由ではLambda Function URLの
-    ドメインが露出する。app側でリダイレクトを無効化していることを固定する。
+    307のLocationはHostから組み立てられ、CloudFront経由ではAPI Gatewayの
+    execute-apiドメインが露出する。app側でリダイレクトを無効化していることを固定する。
     """
     res = client.get(path, follow_redirects=False)
     assert res.status_code == 404
