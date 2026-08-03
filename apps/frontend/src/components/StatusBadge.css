@@ -1,0 +1,52 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--status-color);
+  border: 1px solid currentColor;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-uploading {
+  --status-color: var(--status-neutral);
+}
+.status-uploaded {
+  --status-color: var(--status-info);
+}
+.status-processing {
+  --status-color: var(--status-progress);
+}
+.status-ingested {
+  --status-color: var(--status-success);
+}
+.status-failed {
+  --status-color: var(--status-danger);
+}
+
+/* 取込中は処理が進んでいることが分かるように点滅させる */
+.status-processing .status-dot {
+  animation: status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-processing .status-dot {
+    animation: none;
+  }
+}
