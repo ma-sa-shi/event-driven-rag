@@ -1,0 +1,45 @@
+.documents {
+  .page-title {
+    font-size: 28px;
+    letter-spacing: -0.3px;
+    margin: 0 0 20px;
+  }
+
+  .alert {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--status-danger);
+    color: var(--status-danger);
+    font-size: 15px;
+  }
+
+  .placeholder {
+    padding: 32px 16px;
+    font-size: 15px;
+    color: var(--text);
+    text-align: center;
+
+    button {
+      font: inherit;
+      font-size: 14px;
+      margin-left: 8px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+
+      &:hover {
+        border-color: var(--accent-border);
+        color: var(--text-h);
+      }
+    }
+  }
+
+  /* 画面が狭いときはテーブルだけを横スクロールさせ、ページ全体は横に伸ばさない */
+  .table-scroll {
+    overflow-x: auto;
+  }
+}
