@@ -1,0 +1,99 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.layout-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
+  }
+}
+
+.layout-brand {
+  font-family: var(--heading);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.layout-nav {
+  display: flex;
+  gap: 8px;
+
+  a {
+    font-size: 16px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    white-space: nowrap;
+    transition:
+      background 0.2s,
+      color 0.2s;
+
+    &:hover {
+      background: var(--social-bg);
+      color: var(--text-h);
+    }
+
+    &.active {
+      color: var(--accent);
+      background: var(--accent-bg);
+    }
+  }
+}
+
+/* ユーザー名とサインアウトをヘッダー右端へ寄せる */
+.layout-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 16px;
+
+  button {
+    font: inherit;
+    font-size: 15px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      border-color 0.2s,
+      color 0.2s;
+
+    &:hover {
+      border-color: var(--accent-border);
+      color: var(--text-h);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.layout-main {
+  flex-grow: 1;
+  min-width: 0;
+  padding: 24px 32px 48px;
+
+  @media (max-width: 1024px) {
+    padding: 20px 20px 32px;
+  }
+}
