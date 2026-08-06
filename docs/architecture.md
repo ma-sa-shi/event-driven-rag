@@ -224,6 +224,8 @@ LangChain系ライブラリは容量が大きいため、chat-fnのみでロー�
 
 SSEはLangGraphのnodeごとのstate更新を配信する。トークン単位の配信は行わない。
 
+ストリームは`POST /api/chats/stream`で配信し、認証はAuthorizationヘッダーで行う。ブラウザ標準のEventSourceを使わない理由は[ADR-0012](./adr/0012-sse-post-with-authorization-header.md)に記載する。
+
 ### 5.4 ingest-fn
 
 ドキュメントの取込を担当するFunctionである。SQSイベントから起動し、次の処理を順に実行する。
@@ -600,6 +602,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md) — ADR-0011により失効
 - [ADR-0010: トークンをlocalStorageへ保存する](./adr/0010-token-storage-localstorage.md)
 - [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
+- [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 
 認証の詳細設計は次のドキュメントで管理する。
 
