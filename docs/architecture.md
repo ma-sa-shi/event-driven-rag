@@ -120,8 +120,11 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
 - TypeScript
 - React Router
 - TanStack Query
+- axios
 
-TanStack Queryは、ドキュメント一覧やチャット履歴などサーバー状態のキャッシュに利用する。
+TanStack Queryは、ドキュメント一覧やチャット履歴などサーバー状態のキャッシュに利用する。取得中と失敗の状態、および更新後の再取得を画面ごとに実装せず、共通の仕組みへ寄せる。
+
+axiosはREST APIの呼び出しに利用し、アクセストークンの付与をインターセプタへ集約する。チャットのSSEはレスポンスを逐次読み出す必要があり、axiosがこれを扱えないため、fetchで実装する。
 
 ### 3.2 画面構成・ルーティング
 
