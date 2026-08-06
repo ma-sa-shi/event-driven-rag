@@ -1,0 +1,65 @@
+.chat-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chat-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--social-bg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+
+.chat-question {
+  font-size: 15px;
+  min-width: 0;
+  flex: 1;
+  /* 長い質問は2行で打ち切る */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+
+  time {
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+}
+
+.chat-retry {
+  font-size: 13px;
+  color: var(--status-progress);
+}
+
+.chat-mine {
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
