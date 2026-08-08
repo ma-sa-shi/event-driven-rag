@@ -12,8 +12,8 @@ import { DataStack } from "./data-stack";
 
 // SecureStringはCloudFormationで作成できない為、パラメータ本体は手動作成する
 // 手順はcdk/README.mdに記載
-// CDKは名前参照で読み取り権限のみ付与し、
-// CDK上ではパラメータ名のみを参照して読み取り権限を付与し、Lambdaには値ではなくパラメータ名を環境変数として渡す（ADR-0008）
+// CDKはパラメータ名のみを参照して読み取り権限を付与し、
+// Lambdaには値ではなくパラメータ名を環境変数として渡す(ADR-0008)
 export const OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/openai-api-key";
 export const COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/cohere-api-key";
 
