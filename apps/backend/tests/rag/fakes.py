@@ -8,7 +8,7 @@ from typing import Any
 
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from app.rag.chains import RagChains
 from app.rag.state import GradeAnswer
@@ -65,9 +65,9 @@ class FakeRetriever(BaseRetriever):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    results: dict[str, list[Document]] = {}
-    default: list[Document] = []
-    queries: list[str] = []
+    results: dict[str, list[Document]] = Field(default_factory=dict)
+    default: list[Document] = Field(default_factory=list)
+    queries: list[str] = Field(default_factory=list)
 
     async def _aget_relevant_documents(self, query: str, *, run_manager=None):
         self.queries.append(query)

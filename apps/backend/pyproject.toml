@@ -56,4 +56,7 @@ src = ["."]
 [tool.ruff.lint]
 # 既定(E4/E7/E9/F)にI(isort)を追加し、import順をmake lintで強制する。
 # 選択を明示することでエディタ側の既定ルールセットとの食い違いも防ぐ
-select = ["E4", "E7", "E9", "F", "I"]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "RUF"]
+# コメントとdocstringは日本語で書く方針のため、全角記号やカタカナを
+# 半角英数の誤記と見なすRUF001-003は誤検知しか出さない
+ignore = ["RUF001", "RUF002", "RUF003"]
