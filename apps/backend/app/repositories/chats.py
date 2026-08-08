@@ -1,11 +1,60 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TypedDict
 
 import boto3
 from boto3.dynamodb.conditions import Key
 
 # DynamoDBはfloatを受け付けないため、スコアはDecimalへ丸めて格納する
 SCORE_PRECISION = 6
+
+
+class RetrievedDocument(TypedDict):
+    """検索・リランク済みドキュメントの受け渡し形式。
+
+    SSE・DynamoDB・チャット詳細APIで同じshapeを使う(app/rag/stream.pyが生成する)。
+    """
+
+    documentId: str | None
+    filename: str | None
+    text: str
+    score: float | None
+
+
+class StoredRetrievedDocument(TypedDict):
+    """RetrievedDocumentをDynamoDBへ格納した形式。scoreのみDecimalになる。"""
+
+    documentId: str | None
+    filename: str | None
+    text: str
+    score: Decimal | None
+
+
+class ChatItem(TypedDict):
+    PK: str
+    SK: str
+    GSI1PK: str
+    GSI1SK: str
+    chatId: str
+    userId: str
+    question: str
+    finalAnswer: str | None
+    finalGrade: str | None
+    retryCount: int
+    createdAt: str
+
+
+class ChatAttemptItem(TypedDict):
+    PK: str
+    SK: str
+    chatId: str
+    attemptNo: int
+    queries: list[str]
+    documents: list[StoredRetrievedDocument]
+    answer: str | None
+    grade: str | None
+    feedback: str | None
+    failureAnalysis: str | None
 
 
 def _to_decimal(value: float | None) -> Decimal | None:
@@ -37,9 +86,9 @@ class ChatRepository:
         final_answer: str | None,
         final_grade: str | None,
         retry_count: int,
-    ) -> dict:
+    ) -> ChatItem:
         """チャットのヘッダを1件書き込む。一覧・詳細の入口になる。"""
-        item = {
+        item: ChatItem = {
             "PK": f"USER#{user_id}",
             "SK": f"CHAT#{chat_id}",
             "GSI1PK": "CHAT",
@@ -62,21 +111,21 @@ class ChatRepository:
         chat_id: str,
         attempt_no: int,
         queries: list[str],
-        documents: list[dict],
+        documents: list[RetrievedDocument],
         answer: str | None,
         grade: str | None,
         feedback: str | None,
         failure_analysis: str | None = None,
-    ) -> dict:
+    ) -> ChatAttemptItem:
         """1試行ぶんの全出力を書き込む。attemptNoは0始まり。"""
-        item = {
+        item: ChatAttemptItem = {
             "PK": f"USER#{user_id}",
             "SK": f"MSG#{chat_id}#{attempt_no}",
             "chatId": chat_id,
             "attemptNo": attempt_no,
             "queries": queries,
             "documents": [
-                {**doc, "score": _to_decimal(doc.get("score"))} for doc in documents
+                {**doc, "score": _to_decimal(doc["score"])} for doc in documents
             ],
             "answer": answer,
             "grade": grade,
@@ -86,7 +135,7 @@ class ChatRepository:
         self._table.put_item(Item=item)
         return item
 
-    def get(self, chat_id: str) -> dict | None:
+    def get(self, chat_id: str) -> ChatItem | None:
         """所有者を問わずchatIdで取得する。チャット詳細画面の入口。"""
         res = self._table.query(
             IndexName="GSI1",
@@ -95,7 +144,7 @@ class ChatRepository:
         items = res["Items"]
         return items[0] if items else None
 
-    def list_recent(self, limit: int) -> list[dict]:
+    def list_recent(self, limit: int) -> list[ChatItem]:
         res = self._table.query(
             IndexName="GSI1",
             KeyConditionExpression=Key("GSI1PK").eq("CHAT"),
@@ -104,7 +153,7 @@ class ChatRepository:
         )
         return res["Items"]
 
-    def list_by_user(self, user_id: str, limit: int) -> list[dict]:
+    def list_by_user(self, user_id: str, limit: int) -> list[ChatItem]:
         res = self._table.query(
             KeyConditionExpression=Key("PK").eq(f"USER#{user_id}")
             & Key("SK").begins_with("CHAT#"),
@@ -113,7 +162,7 @@ class ChatRepository:
         )
         return res["Items"]
 
-    def list_attempts(self, user_id: str, chat_id: str) -> list[dict]:
+    def list_attempts(self, user_id: str, chat_id: str) -> list[ChatAttemptItem]:
         res = self._table.query(
             KeyConditionExpression=Key("PK").eq(f"USER#{user_id}")
             & Key("SK").begins_with(f"MSG#{chat_id}#"),

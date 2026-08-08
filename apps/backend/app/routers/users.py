@@ -63,8 +63,8 @@ def list_user_documents(
 ) -> list[DocumentResponse]:
     """指定ユーザーのドキュメント一覧を新しい順で返す。"""
     return [
-        DocumentResponse.model_validate(i)
-        for i in repository.list_by_user(user_id, limit)
+        DocumentResponse.model_validate(item)
+        for item in repository.list_by_user(user_id, limit)
     ]
 
 
@@ -77,6 +77,6 @@ def list_user_chats(
 ) -> list[ChatSummaryResponse]:
     """指定ユーザーのチャット一覧を新しい順で返す。"""
     return [
-        ChatSummaryResponse.model_validate(i)
-        for i in repository.list_by_user(user_id, limit)
+        ChatSummaryResponse.model_validate(item)
+        for item in repository.list_by_user(user_id, limit)
     ]

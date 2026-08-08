@@ -40,17 +40,10 @@ class GradeAnswer(BaseModel):
 class GraphState(TypedDict):
     """Self-RAGワークフローがノード間で受け渡す状態。
 
-    Attributes:
-        question: ユーザーからの質問
-        queries: 試行ごとの検索クエリ
-        documents: 試行ごとの検索・リランク済みドキュメント
-        answer: 試行ごとの回答
-        grade: 試行ごとの評価
-        feedback: 試行ごとの評価理由
-        retry_count: ループ回数。初回は0で、再試行のたびに1増える
-        failure_analysis: 十分な回答が得られなかった場合の分析結果
-        user_id: ユーザーID(JWTのsub)
-        request_id: リクエストID
+    queries・documents・answer・grade・feedbackは試行ごとに1要素ずつ積み上がる。
+    retry_countは初回が0で、再試行のたびに1増える。
+    failure_analysisは再試行しても十分な回答が得られなかった場合のみ設定される。
+    user_idはJWTのsub。
     """
 
     question: str
