@@ -85,6 +85,11 @@ export function Documents() {
     }
   };
 
+  // mutationのvariablesは実行中のdocumentIdを指す。完了後も直前の値が残る為isPendingで絞る
+  const ingestingId = ingestMutation.isPending
+    ? (ingestMutation.variables ?? null)
+    : null;
+
   const handleIngest = (documentId: string) => {
     setError(null);
     ingestMutation.mutate(documentId);
@@ -151,11 +156,7 @@ export function Documents() {
               onOpen={(id) => void handleOpen(id)}
               onIngest={handleIngest}
               openingId={openingId}
-              ingestingId={
-                ingestMutation.isPending
-                  ? (ingestMutation.variables ?? null)
-                  : null
-              }
+              ingestingId={ingestingId}
             />
           </div>
         ))}

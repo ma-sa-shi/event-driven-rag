@@ -1,6 +1,16 @@
 from datetime import UTC, datetime
+from typing import TypedDict
 
 import boto3
+
+
+class UserProfileItem(TypedDict):
+    PK: str
+    SK: str
+    displayName: str
+    email: str
+    createdAt: str
+    updatedAt: str
 
 
 class UserRepository:
@@ -13,7 +23,7 @@ class UserRepository:
     def __init__(self, table_name: str) -> None:
         self._table = boto3.resource("dynamodb").Table(table_name)
 
-    def get_profile(self, user_id: str) -> dict | None:
+    def get_profile(self, user_id: str) -> UserProfileItem | None:
         res = self._table.get_item(Key={"PK": f"USER#{user_id}", "SK": "PROFILE"})
         return res.get("Item")
 

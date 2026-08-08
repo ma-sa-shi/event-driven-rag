@@ -7,7 +7,7 @@ SSMからのAPIキー取得やクライアント生成のオーバーヘッド�
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
+from typing import Any, Protocol
 
 import boto3
 
@@ -28,12 +28,17 @@ class DocumentNotFoundError(Exception):
     """SQSメッセージが指すドキュメントがDynamoDBに存在しない。"""
 
 
+class Embedder(Protocol):
+    def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
+
+
 @dataclass(frozen=True)
 class IngestPipeline:
     bucket_name: str
     repository: DocumentRepository
-    embedder: Any
+    embedder: Embedder
     vector_index: VectorIndex
+    # boto3のクライアントは動的に生成され、型を付けられない
     s3_client: Any
 
     def run(self, *, document_id: str, user_id: str, s3_key: str) -> int:
@@ -59,8 +64,7 @@ class IngestPipeline:
         )
         self._delete_stale_vectors(
             document_id=document_id,
-            # 初回取込ではchunkCountを持たないため0で代替する
-            # DynamoDBの数値はDecimalで返り、そのままではrange()に渡せない
+            # 初回取込ではchunkCountを持たない。Decimalのままではrange()へ渡せない
             previous_count=int(document.get("chunkCount", 0)),
             current_count=len(chunks),
         )
