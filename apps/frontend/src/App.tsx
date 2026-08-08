@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import { AuthCallback } from "./pages/AuthCallback";
 import { Documents } from "./pages/Documents";
 import { Home } from "./pages/Home";
+import { NotFound } from "./pages/NotFound";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       >
         <Route path="/" element={<Home />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );
