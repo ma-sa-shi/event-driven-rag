@@ -157,28 +157,39 @@ Applies to `apps/backend/`.
 
 ## Japanese Writing Quality
 
-When generating Japanese text (including comments, documentation, ADRs, issues, PR descriptions, and commit messages), prioritize natural Japanese over literal translation from English.
+When generating Japanese text, write natural, idiomatic Japanese rather than translating English sentence by sentence.
+
+This applies to all Japanese text, including:
+
+- documentation
+- ADRs
+- issues
+- PR descriptions
+- source-code comments
+- Python docstrings
 
 ### Writing Principles
 
-- Do not translate English expressions literally. Preserve the meaning while using natural Japanese.
-- Prefer wording commonly used in Japanese technical documentation.
-- Follow the terminology and writing style already established in this repository.
-- Avoid introducing unnatural or novel expressions when a standard Japanese equivalent exists.
-- Prioritize readability and clarity over preserving the original English sentence structure.
+- Preserve the meaning, but restructure sentences as necessary so that the Japanese reads naturally. Do not carry over English sentence structure.
+- Prefer terminology commonly used in Japanese technical documentation, and follow the terminology and writing style already established in the repository.
+- Do not introduce unnecessary English words when an established Japanese term is more natural.
+- Keep established technical terms, product names, proper nouns, and standard abbreviations in their conventional form.
+- Prefer clear, concise wording that a native Japanese technical writer would naturally use.
+- Avoid novel terminology when a standard Japanese expression exists.
 
-### Self-Review Before Writing
+### Self-Review
 
-Review the text from the perspective of a native Japanese reader.
+Before finishing, review the Japanese text separately from the drafting process.
 
-Verify that:
+Check that:
 
-- The text does not read like a literal translation from English.
-- The wording is natural and idiomatic for Japanese readers.
-- Terminology is consistent throughout the document and with the rest of the repository.
-- The sentences are easy to read and understand without awkward phrasing.
+- It reads naturally to a native Japanese reader.
+- It does not sound like a literal translation from English.
+- English terms are used only where they are standard or appropriate.
+- Terminology is consistent with the repository.
+- The text is clear, concise, and easy to understand.
 
-If there is a more natural way to express the same meaning in Japanese, prefer that wording over a literal translation.
+When Japanese is derived from English source material, review the Japanese on its own rather than sentence by sentence against the English source.
 
 ## Notes
 
