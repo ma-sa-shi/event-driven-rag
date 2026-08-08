@@ -8,9 +8,11 @@ from types import SimpleNamespace
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 
 from app.ingest.embeddings import EMBEDDING_DIMENSION
-from app.ingest.pipeline import IngestPipeline
+from app.ingest.extract import UnsupportedFileTypeError
+from app.ingest.pipeline import DocumentNotFoundError, IngestPipeline
 from app.ingest.vectors import VectorIndex
 from app.ingest_handler import handler
 from app.repositories.documents import DocumentRepository
@@ -211,7 +213,7 @@ def test_marks_failed_and_reraises_when_file_is_missing(
         status="processing",
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ClientError):
         handler(build_event(), lambda_context)
 
     assert get_document(aws)["status"] == "failed"
@@ -228,7 +230,7 @@ def test_marks_failed_for_unsupported_file_type(aws, pipeline, lambda_context):
     )
     upload(aws, b"binary", key=f"documents/{USER_ID}/{DOCUMENT_ID}/sheet.xlsx")
 
-    with pytest.raises(Exception):
+    with pytest.raises(UnsupportedFileTypeError):
         handler(
             build_event(s3_key=f"documents/{USER_ID}/{DOCUMENT_ID}/sheet.xlsx"),
             lambda_context,
@@ -262,7 +264,7 @@ def test_marks_failed_when_embedding_api_fails(
 
 def test_unknown_document_raises_without_creating_item(aws, pipeline, lambda_context):
     """DynamoDBに存在しないドキュメントのメッセージでもfailed更新で新規作成しない。"""
-    with pytest.raises(Exception):
+    with pytest.raises(DocumentNotFoundError):
         handler(build_event(), lambda_context)
 
     response = aws.table.get_item(
