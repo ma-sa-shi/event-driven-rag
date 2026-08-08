@@ -1,4 +1,12 @@
+from dataclasses import dataclass
+
 from langchain_core.documents import Document
+
+
+@dataclass
+class _FusedDocument:
+    document: Document
+    score: float = 0.0
 
 
 def reciprocal_rank_fusion(
@@ -6,27 +14,14 @@ def reciprocal_rank_fusion(
 ) -> list[Document]:
     """複数クエリの検索結果を相互順位融合(RRF)で1本に統合する。
 
-    Args:
-        retriever_outputs: クエリごとの検索結果
-        k: 順位の影響を緩めるRRFの定数
-        top_n: 返すドキュメント数
-
-    Returns:
-        スコア降順のドキュメント。同一ドキュメントはdoc.idで名寄せされる
+    同一ドキュメントはdoc.idで名寄せする。kは順位差の影響を緩める定数。
     """
-    # { doc_id: {score: スコア, document: Documentオブジェクト} }
-    doc_score_map: dict[str, dict] = {}
+    fused: dict[str, _FusedDocument] = {}
 
     for docs in retriever_outputs:
         for rank, doc in enumerate(docs):
-            if doc.id not in doc_score_map:
-                doc_score_map[doc.id] = {"score": 0.0, "document": doc}
-            doc_score_map[doc.id]["score"] += 1 / (rank + k)
+            entry = fused.setdefault(doc.id, _FusedDocument(document=doc))
+            entry.score += 1 / (rank + k)
 
-    sorted_items = sorted(
-        doc_score_map.items(),
-        key=lambda x: x[1]["score"],
-        reverse=True,  # 降順
-    )
-
-    return [item[1]["document"] for item in sorted_items[:top_n]]
+    ranked = sorted(fused.values(), key=lambda entry: entry.score, reverse=True)
+    return [entry.document for entry in ranked[:top_n]]

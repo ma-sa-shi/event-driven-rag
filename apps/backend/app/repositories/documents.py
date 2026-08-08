@@ -1,7 +1,31 @@
 from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Literal, NotRequired, TypedDict
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
+
+DocumentStatus = Literal["uploading", "uploaded", "processing", "ingested", "failed"]
+
+
+class DocumentItem(TypedDict):
+    """DynamoDBに保存するDocumentsエンティティ。
+
+    chunkCountは取込完了時のみ付与される。DynamoDBは数値をDecimalで返す。
+    """
+
+    PK: str
+    SK: str
+    GSI1PK: str
+    GSI1SK: str
+    documentId: str
+    userId: str
+    filename: str
+    s3Key: str
+    status: DocumentStatus
+    createdAt: str
+    updatedAt: str
+    chunkCount: NotRequired[Decimal]
 
 
 class DocumentStatusError(Exception):
@@ -20,9 +44,9 @@ class DocumentRepository:
 
     def create(
         self, *, user_id: str, document_id: str, filename: str, s3_key: str
-    ) -> dict:
+    ) -> DocumentItem:
         now = datetime.now(UTC).isoformat()
-        item = {
+        item: DocumentItem = {
             "PK": f"USER#{user_id}",
             "SK": f"DOC#{document_id}",
             "GSI1PK": "DOC",
@@ -38,14 +62,14 @@ class DocumentRepository:
         self._table.put_item(Item=item)
         return item
 
-    def get_owned(self, user_id: str, document_id: str) -> dict | None:
+    def get_owned(self, user_id: str, document_id: str) -> DocumentItem | None:
         """本人のドキュメントを取得する。ステータス更新系の所有チェックに使う。"""
         res = self._table.get_item(
             Key={"PK": f"USER#{user_id}", "SK": f"DOC#{document_id}"}
         )
         return res.get("Item")
 
-    def get(self, document_id: str) -> dict | None:
+    def get(self, document_id: str) -> DocumentItem | None:
         """所有者を問わずdocumentIdで取得する。閲覧用presigned URL発行に使う。"""
         res = self._table.query(
             IndexName="GSI1",
@@ -55,7 +79,7 @@ class DocumentRepository:
         items = res["Items"]
         return items[0] if items else None
 
-    def list_recent(self, limit: int) -> list[dict]:
+    def list_recent(self, limit: int) -> list[DocumentItem]:
         res = self._table.query(
             IndexName="GSI1",
             KeyConditionExpression=Key("GSI1PK").eq("DOC"),
@@ -64,7 +88,7 @@ class DocumentRepository:
         )
         return res["Items"]
 
-    def list_by_user(self, user_id: str, limit: int) -> list[dict]:
+    def list_by_user(self, user_id: str, limit: int) -> list[DocumentItem]:
         res = self._table.query(
             KeyConditionExpression=Key("PK").eq(f"USER#{user_id}")
             & Key("SK").begins_with("DOC#"),
@@ -77,9 +101,9 @@ class DocumentRepository:
         self,
         user_id: str,
         document_id: str,
-        new_status: str,
+        new_status: DocumentStatus,
         *,
-        allowed_from: tuple[str, ...],
+        allowed_from: tuple[DocumentStatus, ...],
         chunk_count: int | None = None,
     ) -> None:
         """条件付き更新でステータスを遷移させる。
@@ -88,7 +112,7 @@ class DocumentRepository:
         chunk_countは取込完了時のみ指定し、再取込での余剰ベクトル削除に使う。
         """
         expression = "SET #status = :status, updatedAt = :now"
-        values: dict = {
+        values: dict[str, str | int] = {
             ":status": new_status,
             ":now": datetime.now(UTC).isoformat(),
         }

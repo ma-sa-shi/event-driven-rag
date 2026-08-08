@@ -9,20 +9,28 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from itertools import zip_longest
-from typing import Any
+from typing import Any, NamedTuple
 
 from langchain_core.documents import Document
 
 from app.logger import logger
 from app.rag.runtime import RagRuntime
-from app.repositories.chats import ChatRepository
+from app.repositories.chats import ChatRepository, RetrievedDocument
 
 # GraphStateで試行ごとに積み上がるキー。1ノードの更新差分は必ず1試行分の為、
 # SSEでは外側のリストを外して「そのノードが出した値」だけを送る
 ACCUMULATED_KEYS = frozenset({"queries", "documents", "answer", "grade", "feedback"})
 
 
-def to_document_payload(document: Document) -> dict:
+class Attempt(NamedTuple):
+    queries: list[str] | None
+    documents: list[Document] | None
+    answer: str | None
+    grade: str | None
+    feedback: str | None
+
+
+def to_document_payload(document: Document) -> RetrievedDocument:
     """Documentを、SSE・DynamoDB・既存GET APIで共通のshapeへ正規化する。"""
     metadata = document.metadata or {}
     return {
@@ -42,25 +50,26 @@ def _serialize_value(key: str, value: Any) -> Any:
     return value
 
 
-def _sse(event: str, data: dict) -> str:
+def _sse(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-def _attempts(state: dict) -> list[tuple]:
+def _attempts(state: dict[str, Any]) -> list[Attempt]:
     """最終stateを試行ごとの行へ展開する。
 
     ノードによって積み上がる要素数が揃わない場合(失敗分析へ抜けた等)があるため、
     最長のリストに合わせてNoneで埋める。
     """
-    return list(
-        zip_longest(
+    return [
+        Attempt(*row)
+        for row in zip_longest(
             state.get("queries", []),
             state.get("documents", []),
             state.get("answer", []),
             state.get("grade", []),
             state.get("feedback", []),
         )
-    )
+    ]
 
 
 def persist(
@@ -69,7 +78,7 @@ def persist(
     user_id: str,
     chat_id: str,
     question: str,
-    state: dict,
+    state: dict[str, Any],
 ) -> None:
     """ヘッダーと試行ごとの全出力を書き込む。"""
     answers = state.get("answer") or []
@@ -84,19 +93,21 @@ def persist(
         retry_count=state.get("retry_count", 0),
     )
 
-    rows = _attempts(state)
-    for attempt_no, (queries, documents, answer, grade, feedback) in enumerate(rows):
+    attempts = _attempts(state)
+    for attempt_no, attempt in enumerate(attempts):
         # failure analysisは最終試行に対する分析のため、最後の行にだけ載せる
-        is_last = attempt_no == len(rows) - 1
+        is_last = attempt_no == len(attempts) - 1
         repository.put_attempt(
             user_id=user_id,
             chat_id=chat_id,
             attempt_no=attempt_no,
-            queries=list(queries or []),
-            documents=[to_document_payload(d) for d in documents or []],
-            answer=answer,
-            grade=grade,
-            feedback=feedback,
+            queries=list(attempt.queries or []),
+            documents=[
+                to_document_payload(document) for document in attempt.documents or []
+            ],
+            answer=attempt.answer,
+            grade=attempt.grade,
+            feedback=attempt.feedback,
             failure_analysis=state.get("failure_analysis") if is_last else None,
         )
 
@@ -113,7 +124,7 @@ async def generate_sse(
     """ノードごとのstate更新をSSEで配信し、完了後にdoneイベントを返す。"""
     logger.info("chat stream started", chat_id=chat_id, question=question[:50])
 
-    final_state: dict = {}
+    final_state: dict[str, Any] = {}
     try:
         async for mode, payload in runtime.graph.astream(
             {
