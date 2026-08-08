@@ -8,18 +8,21 @@ SQSはbatchSize=1の為、そのメッセージだけが再試行され、maxRec
 """
 
 import json
+from typing import Any
 
-from app.ingest.pipeline import get_ingest_pipeline
+from aws_lambda_powertools.utilities.typing import LambdaContext
+
+from app.ingest.pipeline import IngestPipeline, get_ingest_pipeline
+from app.ingest_queue import IngestMessage
 from app.logger import logger
 from app.repositories.documents import DocumentStatusError
 
 FAILED_ALLOWED_FROM = ("processing", "failed", "ingested")
 
 
-# logger.inject_lambda_contextはLambda Powertools のデコレータで
-# Lambdaのコンテキスト情報(function_nameやLambdaランタイムが生成するaws_request_id等)を自動的にログに付与
+# Lambdaのコンテキスト情報(function_nameやaws_request_id等)を全ログへ付与する
 @logger.inject_lambda_context
-def handler(event, context):
+def handler(event: dict[str, Any], context: LambdaContext) -> None:
     """SQSイベントのRecordsを取り出し、1件ずつ取込処理へ渡す。
 
     1件でも失敗すると例外を送出するため、SQSは同じバッチ全体を再試行する。
@@ -30,8 +33,8 @@ def handler(event, context):
         _process_record(record)
 
 
-def _process_record(record: dict) -> None:
-    message = json.loads(record["body"])
+def _process_record(record: dict[str, Any]) -> None:
+    message: IngestMessage = json.loads(record["body"])
     document_id = message["documentId"]
     user_id = message["userId"]
     # api-fnが発番したRequest IDを引き継ぎ、取込完了までログを追跡する
@@ -53,7 +56,7 @@ def _process_record(record: dict) -> None:
         logger.remove_keys(["request_id", "document_id"])
 
 
-def _mark_failed(pipeline, *, user_id: str, document_id: str) -> None:
+def _mark_failed(pipeline: IngestPipeline, *, user_id: str, document_id: str) -> None:
     """ドキュメントのステータスをfailedへ更新する。
 
     取込失敗のraiseを上書きしない為、ステータス更新自体が失敗しても例外を外へ漏らさない。

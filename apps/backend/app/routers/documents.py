@@ -46,7 +46,9 @@ def list_documents(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[DocumentResponse]:
     """全ユーザー横断のドキュメント一覧を新しい順で返す。"""
-    return [DocumentResponse.model_validate(i) for i in repository.list_recent(limit)]
+    return [
+        DocumentResponse.model_validate(item) for item in repository.list_recent(limit)
+    ]
 
 
 @router.post("/upload-url", status_code=status.HTTP_201_CREATED)

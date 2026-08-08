@@ -40,7 +40,8 @@ def list_chats(
 ) -> list[ChatSummaryResponse]:
     """全ユーザーのチャット一覧を新しい順で返す。"""
     return [
-        ChatSummaryResponse.model_validate(i) for i in repository.list_recent(limit)
+        ChatSummaryResponse.model_validate(item)
+        for item in repository.list_recent(limit)
     ]
 
 

@@ -1,6 +1,16 @@
 import json
+from typing import TypedDict
 
 import boto3
+
+
+class IngestMessage(TypedDict):
+    """api-fnが送信し、ingest-fnが受け取るSQSメッセージ本文。"""
+
+    documentId: str
+    userId: str
+    s3Key: str
+    requestId: str
 
 
 class IngestQueue:
@@ -15,16 +25,14 @@ class IngestQueue:
         self, *, document_id: str, user_id: str, s3_key: str, request_id: str
     ) -> None:
         # request_idはRequest ID伝搬のために載せ、ingest-fnがログへ引き継ぐ
+        message: IngestMessage = {
+            "documentId": document_id,
+            "userId": user_id,
+            "s3Key": s3_key,
+            "requestId": request_id,
+        }
         self._client.send_message(
             QueueUrl=self._queue_url,
-            MessageBody=json.dumps(
-                {
-                    "documentId": document_id,
-                    "userId": user_id,
-                    "s3Key": s3_key,
-                    "requestId": request_id,
-                },
-                # 日本語などをエスケープせず、日本語のままJSON変換
-                ensure_ascii=False,
-            ),
+            # 日本語などをエスケープせず、日本語のままJSON変換
+            MessageBody=json.dumps(message, ensure_ascii=False),
         )
