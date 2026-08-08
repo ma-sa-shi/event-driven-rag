@@ -1,7 +1,7 @@
 import axios from "axios";
 
 /** SSEはaxiosを通らずfetchで呼ぶ為、ステータス単体で受け取れる形に切り出している。 */
-export function toHttpErrorMessage(status: number | undefined): string | null {
+export function toAuthErrorMessage(status: number | undefined): string | null {
   if (status === 401 || status === 403) {
     return "認証の有効期限が切れた可能性があります。ページを再読み込みしてください。";
   }
@@ -14,7 +14,7 @@ export function toErrorMessage(error: unknown, fallback: string): string {
     return fallback;
   }
   const status = error.response?.status;
-  const authMessage = toHttpErrorMessage(status);
+  const authMessage = toAuthErrorMessage(status);
   if (authMessage) {
     return authMessage;
   }

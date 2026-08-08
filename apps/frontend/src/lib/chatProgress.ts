@@ -1,6 +1,6 @@
 import type {
   ChatGrade,
-  ChatStreamEvent,
+  ChatNodeUpdate,
   RetrievedDocument,
 } from "../api/chats";
 
@@ -16,7 +16,7 @@ export interface Attempt {
 /** generate_queries_nodeだけがretry_countを持つ為、それを試行の添字として使う。 */
 export function applyUpdate(
   attempts: Attempt[],
-  { node, state }: Extract<ChatStreamEvent, { type: "update" }>,
+  { node, state }: ChatNodeUpdate,
 ): Attempt[] {
   // 先頭ノードの到着は新しい試行の開始を意味する。
   // retry_count番目より後に積んだ内容は破棄し、この試行で作り直す

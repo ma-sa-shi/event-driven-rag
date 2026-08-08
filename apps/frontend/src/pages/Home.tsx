@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link } from "react-router-dom";
-import type { ChatGrade } from "../api/chats";
+import type { ChatCompletion } from "../api/chats";
 import { listChats, streamChat } from "../api/chats";
 import { ChatHistory } from "../components/ChatHistory";
 import { ChatProgress } from "../components/ChatProgress";
@@ -15,17 +15,11 @@ import "./Home.css";
 
 const CHATS_QUERY_KEY = ["chats"];
 
-interface Completion {
-  chatId: string;
-  finalGrade: ChatGrade | null;
-  retryCount: number;
-}
-
 export function Home() {
   const auth = useAuth();
   const queryClient = useQueryClient();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [completion, setCompletion] = useState<Completion | null>(null);
+  const [completion, setCompletion] = useState<ChatCompletion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
