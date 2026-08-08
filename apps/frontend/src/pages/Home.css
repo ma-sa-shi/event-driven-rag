@@ -1,0 +1,49 @@
+.home {
+  .history-title {
+    margin: 32px 0 4px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    font-size: 20px;
+  }
+}
+
+.final-answer {
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-bg);
+}
+
+.final-answer-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  h2 {
+    font-size: 20px;
+    margin: 0;
+  }
+
+  a {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--accent);
+  }
+}
+
+.final-answer-body {
+  font-size: 15px;
+  color: var(--text-h);
+  /* 回答は改行を含む為そのまま表示する */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.final-answer-note {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--status-progress);
+}

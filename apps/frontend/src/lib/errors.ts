@@ -1,16 +1,22 @@
 import axios from "axios";
 
-/** APIエラーを画面表示用の日本語メッセージへ変換する。
- *
- * FastAPIのHTTPExceptionは{"detail": "..."}を返す為、あれば補足として添える。
- */
+/** SSEはaxiosを通らずfetchで呼ぶ為、ステータス単体で受け取れる形に切り出している。 */
+export function toAuthErrorMessage(status: number | undefined): string | null {
+  if (status === 401 || status === 403) {
+    return "認証の有効期限が切れた可能性があります。ページを再読み込みしてください。";
+  }
+  return null;
+}
+
+/** FastAPIのHTTPExceptionは{"detail": "..."}を返す為、あれば補足として添える。 */
 export function toErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
     return fallback;
   }
   const status = error.response?.status;
-  if (status === 401 || status === 403) {
-    return "認証の有効期限が切れた可能性があります。ページを再読み込みしてください。";
+  const authMessage = toAuthErrorMessage(status);
+  if (authMessage) {
+    return authMessage;
   }
   if (status === 404) {
     return "対象のドキュメントが見つかりません。一覧を再取得してください。";

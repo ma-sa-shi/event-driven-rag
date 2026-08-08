@@ -120,8 +120,11 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
 - TypeScript
 - React Router
 - TanStack Query
+- axios
 
-TanStack Queryは、ドキュメント一覧やチャット履歴などサーバー状態のキャッシュに利用する。
+TanStack Queryは、ドキュメント一覧やチャット履歴などサーバー状態のキャッシュに利用する。取得中と失敗の状態、および更新後の再取得を画面ごとに実装せず、共通の仕組みへ寄せる。
+
+axiosはREST APIの呼び出しに利用し、アクセストークンの付与をインターセプタへ集約する。チャットのSSEはレスポンスを逐次読み出す必要があり、axiosがこれを扱えないため、fetchで実装する。
 
 ### 3.2 画面構成・ルーティング
 
@@ -223,6 +226,8 @@ LangChain系ライブラリは容量が大きいため、chat-fnのみでロー�
 チャットは1問1答とし、複数ターンの会話は行わない。履歴を文脈として利用せず、各質問を独立して処理する。
 
 SSEはLangGraphのnodeごとのstate更新を配信する。トークン単位の配信は行わない。
+
+ストリームは`POST /api/chats/stream`で配信し、認証はAuthorizationヘッダーで行う。ブラウザ標準のEventSourceを使わない理由は[ADR-0012](./adr/0012-sse-post-with-authorization-header.md)に記載する。
 
 ### 5.4 ingest-fn
 
@@ -600,6 +605,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md) — ADR-0011により失効
 - [ADR-0010: トークンをlocalStorageへ保存する](./adr/0010-token-storage-localstorage.md)
 - [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
+- [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 
 認証の詳細設計は次のドキュメントで管理する。
 
