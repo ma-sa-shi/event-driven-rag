@@ -1,5 +1,5 @@
 import { userManager } from "../auth/userManager";
-import { toHttpErrorMessage } from "../lib/errors";
+import { toAuthErrorMessage } from "../lib/errors";
 import { readSse } from "../lib/sse";
 import { api } from "./client";
 
@@ -32,8 +32,8 @@ export type RagNode =
   | "grade_answer_node"
   | "analyze_failure_node";
 
-/** キーはバックエンドのGraphStateに合わせたsnake_caseで、documentsの中身だけがAPI共通shapeのcamelCase。
- * 更新したキーだけをノードが載せる為、全てoptional。
+/** キーはバックエンドのGraphStateに合わせたsnake_case。documentsの中身だけは他のAPIと同じcamelCaseで届く。
+ * ノードは更新したキーだけを載せる為、全てoptional。
  */
 export interface RagNodeState {
   queries?: string[];
@@ -45,15 +45,26 @@ export interface RagNodeState {
   failure_analysis?: string;
 }
 
+export interface ChatNodeUpdate {
+  node: RagNode;
+  state: RagNodeState;
+}
+
+/** doneイベントで届く生成結果。回答本文は含まれず、進行表示の最後の試行が持つ。 */
+export interface ChatCompletion {
+  chatId: string;
+  finalGrade: ChatGrade | null;
+  retryCount: number;
+}
+
+interface ErrorPayload {
+  message: string;
+  requestId: string;
+}
+
 /** 失敗の扱いを1箇所へまとめる為、SSEのerrorイベントはonEventへ渡さずthrowへ寄せる。 */
 export type ChatStreamEvent =
-  | { type: "update"; node: RagNode; state: RagNodeState }
-  | {
-      type: "done";
-      chatId: string;
-      finalGrade: ChatGrade | null;
-      retryCount: number;
-    };
+  ({ type: "update" } & ChatNodeUpdate) | ({ type: "done" } & ChatCompletion);
 
 export async function listChats(): Promise<ChatSummary[]> {
   const res = await api.get<ChatSummary[]>("/chats");
@@ -106,7 +117,7 @@ export async function streamChat(
 
   // fetchは4xx/5xxでrejectしない為、ステータスを自分で確認する
   if (!res.ok) {
-    const authMessage = toHttpErrorMessage(res.status);
+    const authMessage = toAuthErrorMessage(res.status);
     if (authMessage) {
       throw new Error(authMessage);
     }
@@ -118,24 +129,14 @@ export async function streamChat(
 
   for await (const sse of readSse(res.body)) {
     if (sse.event === "update") {
-      const { node, state } = JSON.parse(sse.data) as {
-        node: RagNode;
-        state: RagNodeState;
-      };
-      onEvent({ type: "update", node, state });
+      const update = JSON.parse(sse.data) as ChatNodeUpdate;
+      onEvent({ type: "update", ...update });
     } else if (sse.event === "done") {
-      const { chatId, finalGrade, retryCount } = JSON.parse(sse.data) as {
-        chatId: string;
-        finalGrade: ChatGrade | null;
-        retryCount: number;
-      };
-      onEvent({ type: "done", chatId, finalGrade, retryCount });
+      const completion = JSON.parse(sse.data) as ChatCompletion;
+      onEvent({ type: "done", ...completion });
       return;
     } else if (sse.event === "error") {
-      const { message, requestId } = JSON.parse(sse.data) as {
-        message: string;
-        requestId: string;
-      };
+      const { message, requestId } = JSON.parse(sse.data) as ErrorPayload;
       throw new Error(`${message}（リクエストID: ${requestId}）`);
     }
     // 上記以外のイベント名(KeepAlive等)は画面へ出さず読み飛ばす
