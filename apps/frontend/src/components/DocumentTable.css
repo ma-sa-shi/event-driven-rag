@@ -28,6 +28,15 @@
     word-break: break-all;
   }
 
+  .owner {
+    white-space: nowrap;
+
+    a {
+      font-size: 14px;
+      color: var(--accent);
+    }
+  }
+
   .updated-at {
     font-family: var(--mono);
     font-size: 14px;

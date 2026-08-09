@@ -4,7 +4,6 @@ import { useAuth } from "react-oidc-context";
 import {
   completeUpload,
   createUploadUrl,
-  fetchDownloadUrl,
   listDocuments,
   putToS3,
   startIngest,
@@ -13,6 +12,7 @@ import { DocumentTable } from "../components/DocumentTable";
 import { UploadForm } from "../components/UploadForm";
 import { toErrorMessage } from "../lib/errors";
 import { ACCEPTED_EXTENSIONS, contentTypeFor } from "../lib/fileTypes";
+import { useOpenDocument } from "../lib/useOpenDocument";
 import "./Documents.css";
 
 const DOCUMENTS_QUERY_KEY = ["documents"];
@@ -23,7 +23,7 @@ export function Documents() {
   const auth = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [openingId, setOpeningId] = useState<string | null>(null);
+  const { openDocument, openingId } = useOpenDocument(setError);
 
   const invalidateDocuments = () =>
     queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
@@ -95,28 +95,9 @@ export function Documents() {
     ingestMutation.mutate(documentId);
   };
 
-  const handleOpen = async (documentId: string) => {
+  const handleOpen = (documentId: string) => {
     setError(null);
-    // await後のwindow.openはポップアップブロックの対象になる為、クリック直後に空タブを開く
-    const tab = window.open("", "_blank");
-    // 原本のContent-Type次第ではタブ内でスクリプトが動く為、開いた側への参照を切る
-    if (tab) tab.opener = null;
-    setOpeningId(documentId);
-    try {
-      const { downloadUrl } = await fetchDownloadUrl(documentId);
-      if (tab) {
-        tab.location.href = downloadUrl;
-      } else {
-        setError(
-          "別タブを開けませんでした。ブラウザのポップアップ設定を確認してください",
-        );
-      }
-    } catch (e) {
-      tab?.close();
-      setError(toErrorMessage(e, "原本の取得に失敗しました"));
-    } finally {
-      setOpeningId(null);
-    }
+    void openDocument(documentId);
   };
 
   return (
@@ -153,9 +134,10 @@ export function Documents() {
             <DocumentTable
               documents={documentsQuery.data}
               currentUserId={auth.user?.profile.sub}
-              onOpen={(id) => void handleOpen(id)}
-              onIngest={handleIngest}
+              onOpen={handleOpen}
               openingId={openingId}
+              showOwner
+              onIngest={handleIngest}
               ingestingId={ingestingId}
             />
           </div>

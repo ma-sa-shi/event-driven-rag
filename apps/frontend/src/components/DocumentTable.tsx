@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { DocumentSummary } from "../api/documents";
 import { StatusBadge } from "./StatusBadge";
 import "./DocumentTable.css";
@@ -7,9 +8,12 @@ interface DocumentTableProps {
   /** サインイン中のユーザーのsub。取込は本人のドキュメントにしか実行できない */
   currentUserId: string | undefined;
   onOpen: (documentId: string) => void;
-  onIngest: (documentId: string) => void;
   openingId: string | null;
-  ingestingId: string | null;
+  /** ユーザーページのように投稿者が自明な一覧では省く */
+  showOwner?: boolean;
+  /** 省くと取込開始ボタンを出さない */
+  onIngest?: (documentId: string) => void;
+  ingestingId?: string | null;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -24,8 +28,9 @@ export function DocumentTable({
   documents,
   currentUserId,
   onOpen,
-  onIngest,
   openingId,
+  showOwner,
+  onIngest,
   ingestingId,
 }: DocumentTableProps) {
   return (
@@ -34,6 +39,7 @@ export function DocumentTable({
         <tr>
           <th scope="col">ファイル名</th>
           <th scope="col">状態</th>
+          {showOwner && <th scope="col">投稿者</th>}
           <th scope="col">更新日時</th>
           <th scope="col">操作</th>
         </tr>
@@ -41,6 +47,7 @@ export function DocumentTable({
       <tbody>
         {documents.map((document) => {
           const canIngest =
+            onIngest !== undefined &&
             document.userId === currentUserId &&
             INGESTABLE.includes(document.status);
           return (
@@ -49,6 +56,13 @@ export function DocumentTable({
               <td>
                 <StatusBadge status={document.status} />
               </td>
+              {showOwner && (
+                <td className="owner">
+                  <Link to={`/user/${document.userId}`}>
+                    {document.userId === currentUserId ? "自分" : "ユーザー"}
+                  </Link>
+                </td>
+              )}
               <td className="updated-at">
                 {dateFormatter.format(new Date(document.updatedAt))}
               </td>

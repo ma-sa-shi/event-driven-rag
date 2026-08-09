@@ -8,6 +8,13 @@ export function toAuthErrorMessage(status: number | undefined): string | null {
   return null;
 }
 
+/** toErrorMessageの404は一覧の再取得を促す文言で、詳細画面には合わない。
+ * 画面ごとの案内へ差し替えられるよう判定だけ切り出す。
+ */
+export function isNotFound(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
 /** FastAPIのHTTPExceptionは{"detail": "..."}を返す為、あれば補足として添える。 */
 export function toErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
