@@ -135,8 +135,9 @@ export function Documents() {
               documents={documentsQuery.data}
               currentUserId={auth.user?.profile.sub}
               onOpen={handleOpen}
-              onIngest={handleIngest}
               openingId={openingId}
+              showOwner
+              onIngest={handleIngest}
               ingestingId={ingestingId}
             />
           </div>

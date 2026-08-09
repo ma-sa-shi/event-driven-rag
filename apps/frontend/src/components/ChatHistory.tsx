@@ -6,6 +6,8 @@ import "./ChatHistory.css";
 interface ChatHistoryProps {
   chats: ChatSummary[];
   currentUserId: string | undefined;
+  /** ユーザーページのように投稿者が自明な一覧では省く */
+  showOwner?: boolean;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -13,12 +15,16 @@ const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
   timeStyle: "short",
 });
 
-export function ChatHistory({ chats, currentUserId }: ChatHistoryProps) {
+export function ChatHistory({
+  chats,
+  currentUserId,
+  showOwner,
+}: ChatHistoryProps) {
   return (
     <ul className="chat-history">
       {chats.map((chat) => (
-        <li key={chat.chatId}>
-          {/* 詳細画面(/chat/:chatId)はIssue #18で実装する */}
+        // アンカーは入れ子にできない為、行リンクと投稿者リンクをliへ並べる
+        <li className="chat-history-row" key={chat.chatId}>
           <Link className="chat-history-item" to={`/chat/${chat.chatId}`}>
             <span className="chat-question">{chat.question}</span>
             <span className="chat-meta">
@@ -26,14 +32,16 @@ export function ChatHistory({ chats, currentUserId }: ChatHistoryProps) {
               {chat.retryCount > 0 && (
                 <span className="chat-retry">再試行{chat.retryCount}回</span>
               )}
-              {chat.userId === currentUserId && (
-                <span className="chat-mine">自分</span>
-              )}
               <time dateTime={chat.createdAt}>
                 {dateFormatter.format(new Date(chat.createdAt))}
               </time>
             </span>
           </Link>
+          {showOwner && (
+            <Link className="chat-owner" to={`/user/${chat.userId}`}>
+              {chat.userId === currentUserId ? "自分" : "ユーザー"}
+            </Link>
+          )}
         </li>
       ))}
     </ul>
