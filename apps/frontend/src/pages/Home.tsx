@@ -105,7 +105,6 @@ export function Home() {
             {completion.finalGrade && (
               <GradeBadge grade={completion.finalGrade} />
             )}
-            {/* 詳細画面(/chat/:chatId)はIssue #18で実装する */}
             <Link to={`/chat/${completion.chatId}`}>詳細を見る</Link>
           </div>
           <p className="final-answer-body">{finalAnswer}</p>

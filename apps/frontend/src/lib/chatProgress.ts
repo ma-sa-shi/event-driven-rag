@@ -1,4 +1,5 @@
 import type {
+  ChatAttempt,
   ChatGrade,
   ChatNodeUpdate,
   RetrievedDocument,
@@ -45,4 +46,16 @@ export function applyUpdate(
   }
 
   return [...attempts.slice(0, -1), current];
+}
+
+/** ChatProgressは未実施をundefinedで判定する為、RESTのnullを落とす。 */
+export function toAttempt(attempt: ChatAttempt): Attempt {
+  return {
+    queries: attempt.queries,
+    documents: attempt.documents,
+    answer: attempt.answer ?? undefined,
+    grade: attempt.grade ?? undefined,
+    feedback: attempt.feedback ?? undefined,
+    failureAnalysis: attempt.failureAnalysis ?? undefined,
+  };
 }

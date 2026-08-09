@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { RequireAuth } from "./auth/RequireAuth";
 import { Layout } from "./components/Layout";
 import { AuthCallback } from "./pages/AuthCallback";
+import { ChatDetail } from "./pages/ChatDetail";
 import { Documents } from "./pages/Documents";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
@@ -19,6 +20,7 @@ function App() {
         }
       >
         <Route path="/" element={<Home />} />
+        <Route path="/chat/:chatId" element={<ChatDetail />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="*" element={<NotFound />} />
       </Route>

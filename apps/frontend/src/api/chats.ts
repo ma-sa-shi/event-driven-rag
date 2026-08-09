@@ -57,6 +57,21 @@ export interface ChatCompletion {
   retryCount: number;
 }
 
+/** 保存済みの1試行。失敗分析のように生成されない項目はnullで届く。 */
+export interface ChatAttempt {
+  attemptNo: number;
+  queries: string[];
+  documents: RetrievedDocument[];
+  answer: string | null;
+  grade: ChatGrade | null;
+  feedback: string | null;
+  failureAnalysis: string | null;
+}
+
+export interface ChatDetail extends ChatSummary {
+  attempts: ChatAttempt[];
+}
+
 interface ErrorPayload {
   message: string;
   requestId: string;
@@ -68,6 +83,12 @@ export type ChatStreamEvent =
 
 export async function listChats(): Promise<ChatSummary[]> {
   const res = await api.get<ChatSummary[]>("/chats");
+  return res.data;
+}
+
+/** チャット1件を試行ごとの全出力付きで取得する。 */
+export async function getChat(chatId: string): Promise<ChatDetail> {
+  const res = await api.get<ChatDetail>(`/chats/${chatId}`);
   return res.data;
 }
 
