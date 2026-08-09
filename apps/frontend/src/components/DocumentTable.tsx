@@ -7,9 +7,10 @@ interface DocumentTableProps {
   /** サインイン中のユーザーのsub。取込は本人のドキュメントにしか実行できない */
   currentUserId: string | undefined;
   onOpen: (documentId: string) => void;
-  onIngest: (documentId: string) => void;
   openingId: string | null;
-  ingestingId: string | null;
+  /** 省くと取込開始ボタンを出さない */
+  onIngest?: (documentId: string) => void;
+  ingestingId?: string | null;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -24,8 +25,8 @@ export function DocumentTable({
   documents,
   currentUserId,
   onOpen,
-  onIngest,
   openingId,
+  onIngest,
   ingestingId,
 }: DocumentTableProps) {
   return (
@@ -41,6 +42,7 @@ export function DocumentTable({
       <tbody>
         {documents.map((document) => {
           const canIngest =
+            onIngest !== undefined &&
             document.userId === currentUserId &&
             INGESTABLE.includes(document.status);
           return (

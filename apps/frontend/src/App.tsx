@@ -6,6 +6,7 @@ import { ChatDetail } from "./pages/ChatDetail";
 import { Documents } from "./pages/Documents";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
+import { UserDetail } from "./pages/UserDetail";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       >
         <Route path="/" element={<Home />} />
         <Route path="/chat/:chatId" element={<ChatDetail />} />
+        <Route path="/user/:userId" element={<UserDetail />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="*" element={<NotFound />} />
       </Route>

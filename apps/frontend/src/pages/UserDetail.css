@@ -1,0 +1,47 @@
+.user-detail {
+  /* 画面が狭いときはテーブルだけを横スクロールさせ、ページ全体は横に伸ばさない */
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .section-title {
+    margin: 32px 0 4px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    font-size: 20px;
+  }
+}
+
+.user-profile {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 16px;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  dt {
+    color: var(--text);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-h);
+    word-break: break-all;
+  }
+
+  time {
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+}
