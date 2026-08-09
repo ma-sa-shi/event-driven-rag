@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 
-/** /chat/:chatIdはIssue #18で実装する為、それまでは履歴から辿るとこの画面になる。 */
 export function NotFound() {
   return (
     <div>

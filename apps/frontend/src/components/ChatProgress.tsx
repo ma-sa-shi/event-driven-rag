@@ -1,3 +1,4 @@
+import type { RetrievedDocument } from "../api/chats";
 import type { Attempt } from "../lib/chatProgress";
 import { GradeBadge } from "./GradeBadge";
 import "./ChatProgress.css";
@@ -36,9 +37,18 @@ const scoreFormatter = new Intl.NumberFormat("ja-JP", {
 interface ChatProgressProps {
   attempts: Attempt[];
   isStreaming: boolean;
+  /** 渡すと検索ドキュメントが原本を開くボタンになる */
+  onOpenDocument?: (documentId: string) => void;
+  /** 記録の閲覧では文字数ではなく回答本文を出す */
+  showAnswerBody?: boolean;
 }
 
-export function ChatProgress({ attempts, isStreaming }: ChatProgressProps) {
+export function ChatProgress({
+  attempts,
+  isStreaming,
+  onOpenDocument,
+  showAnswerBody,
+}: ChatProgressProps) {
   return (
     <section
       className="chat-progress"
@@ -67,7 +77,10 @@ export function ChatProgress({ attempts, isStreaming }: ChatProgressProps) {
                   <div className="step-body">
                     <span className="step-label">{step.label}</span>
                     <span className="step-sub">{step.sub}</span>
-                    {renderDetail(attempt, step.key)}
+                    {renderDetail(attempt, step.key, {
+                      onOpenDocument,
+                      showAnswerBody,
+                    })}
                   </div>
                 </li>
               ))}
@@ -100,7 +113,12 @@ function stepStatus(
   return key === runningKey ? "running" : "pending";
 }
 
-function renderDetail(attempt: Attempt, key: StepKey) {
+type DetailOptions = Pick<
+  ChatProgressProps,
+  "onOpenDocument" | "showAnswerBody"
+>;
+
+function renderDetail(attempt: Attempt, key: StepKey, options: DetailOptions) {
   if (key === "queries" && attempt.queries) {
     return (
       <ul className="step-detail">
@@ -119,7 +137,7 @@ function renderDetail(attempt: Attempt, key: StepKey) {
       <ul className="step-detail">
         {attempt.documents.map((document, index) => (
           <li key={index}>
-            {document.filename ?? "（ファイル名なし）"}
+            {renderDocumentName(document, options.onOpenDocument)}
             {document.score !== null && (
               <span className="doc-score">
                 {scoreFormatter.format(document.score)}
@@ -132,6 +150,9 @@ function renderDetail(attempt: Attempt, key: StepKey) {
   }
 
   if (key === "answer" && attempt.answer !== undefined) {
+    if (options.showAnswerBody) {
+      return <p className="answer-body">{attempt.answer}</p>;
+    }
     return (
       <p className="step-detail">
         回答を生成しました（{attempt.answer.length}文字）
@@ -149,4 +170,25 @@ function renderDetail(attempt: Attempt, key: StepKey) {
   }
 
   return null;
+}
+
+function renderDocumentName(
+  document: RetrievedDocument,
+  onOpenDocument: ((documentId: string) => void) | undefined,
+) {
+  const name = document.filename ?? "（ファイル名なし）";
+  // documentIdはS3 Vectorsのメタデータ由来で、欠けた断片は原本を辿れない
+  if (!onOpenDocument || !document.documentId) {
+    return name;
+  }
+  const documentId = document.documentId;
+  return (
+    <button
+      type="button"
+      className="doc-open"
+      onClick={() => onOpenDocument(documentId)}
+    >
+      {name}
+    </button>
+  );
 }
