@@ -1,0 +1,47 @@
+.chat-question-block {
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.chat-question-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  h2 {
+    font-size: 20px;
+    margin: 0;
+  }
+
+  a {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--accent);
+  }
+}
+
+.chat-question-body {
+  font-size: 15px;
+  color: var(--text-h);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-question-time {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.attempts-title {
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+  font-size: 20px;
+}

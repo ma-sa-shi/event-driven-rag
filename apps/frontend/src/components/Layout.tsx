@@ -1,5 +1,5 @@
 import { useAuth } from "react-oidc-context";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { redirectToCognitoLogout } from "../auth/userManager";
 import "./Layout.css";
 
@@ -23,7 +23,11 @@ export function Layout() {
           <NavLink to="/documents">ドキュメント</NavLink>
         </nav>
         <div className="layout-user">
-          <span>{auth.user?.profile.name}</span>
+          {auth.user && (
+            <Link to={`/user/${auth.user.profile.sub}`}>
+              {auth.user.profile.name}
+            </Link>
+          )}
           <button type="button" onClick={() => void handleSignOut()}>
             サインアウト
           </button>

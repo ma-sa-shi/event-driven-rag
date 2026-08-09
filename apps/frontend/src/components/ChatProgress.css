@@ -91,11 +91,36 @@
   }
 }
 
+.doc-open {
+  font: inherit;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .doc-score {
   font-family: var(--mono);
   font-size: 13px;
   margin-left: 8px;
   opacity: 0.8;
+}
+
+.answer-body {
+  margin: 6px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+  /* 回答は改行を含む為そのまま表示する */
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .feedback {
