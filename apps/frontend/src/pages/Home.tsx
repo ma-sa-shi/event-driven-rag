@@ -137,6 +137,7 @@ export function Home() {
           <ChatHistory
             chats={chatsQuery.data}
             currentUserId={auth.user?.profile.sub}
+            showOwner
           />
         ))}
     </div>
