@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 検証のみでAWSへは接続しない
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      # VITE_COGNITO_*はビルド時に埋め込まれるが、型検査とバンドルは値なしでも通る。
+      # 実際の値の注入はdeploy-frontend.ymlが行う
+      - run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9
+        with:
+          # uvのバージョン解決とキャッシュキーをbackendのuv.lockに合わせる
+          working-directory: apps/backend
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      # テストはconftest.pyのfixtureとmotoで完結する為、AWS認証情報は不要
+      - run: uv run pytest
+
+  cdk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cdk
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cdk/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      # コンテナアセットのビルドはcdk-assetsがデプロイ時に行う為、Dockerは要らない
+      - run: npm test
