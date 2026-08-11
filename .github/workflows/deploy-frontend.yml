@@ -1,0 +1,87 @@
+name: Deploy frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/frontend/**
+      - .github/workflows/deploy-frontend.yml
+  workflow_dispatch:
+
+permissions:
+  # OIDCトークンの発行に必要。長期アクセスキーは持たせない
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # 想定外のアカウントで解決された場合にデプロイ前で落とす
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      # Cognitoを作り直しても同期ずれが起きないよう、GitHub側へ値を複製せず
+      # DataStackの出力から取得する
+      - name: Resolve Cognito settings from DataStack
+        run: |
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name DataStack \
+            --query 'Stacks[0].Outputs' --output json)
+          read_output() {
+            echo "$outputs" | jq -er --arg key "$1" \
+              '.[] | select(.OutputKey == $key) | .OutputValue'
+          }
+          {
+            echo "VITE_COGNITO_AUTHORITY=$(read_output CognitoIssuer)"
+            echo "VITE_COGNITO_CLIENT_ID=$(read_output UserPoolClientId)"
+            echo "VITE_COGNITO_DOMAIN=$(read_output CognitoDomainUrl)"
+          } >> "$GITHUB_ENV"
+
+      - name: Resolve delivery targets from EdgeStack
+        run: |
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name EdgeStack \
+            --query 'Stacks[0].Outputs' --output json)
+          read_output() {
+            echo "$outputs" | jq -er --arg key "$1" \
+              '.[] | select(.OutputKey == $key) | .OutputValue'
+          }
+          {
+            echo "SPA_BUCKET_NAME=$(read_output SpaBucketName)"
+            echo "DISTRIBUTION_ID=$(read_output DistributionId)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync apps/frontend/dist "s3://${SPA_BUCKET_NAME}" --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${DISTRIBUTION_ID}" \
+            --paths '/*'

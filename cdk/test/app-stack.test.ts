@@ -6,6 +6,7 @@ import {
   OPENAI_API_KEY_PARAMETER_NAME,
 } from '../lib/app-stack';
 import { DataStack } from '../lib/data-stack';
+import { normalizeAssetHashes } from './helpers';
 
 let template: Template;
 
@@ -308,8 +309,6 @@ describe('IAM', () => {
   });
 });
 
-// backendソースの変更でイメージアセットハッシュが変わるため、
-// スナップショットはbackend編集のたびに更新される(意図した挙動)
 test('スナップショット', () => {
-  expect(template.toJSON()).toMatchSnapshot();
+  expect(normalizeAssetHashes(template)).toMatchSnapshot();
 });

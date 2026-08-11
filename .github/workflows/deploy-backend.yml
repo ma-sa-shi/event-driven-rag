@@ -1,0 +1,100 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/backend/**
+      - .github/workflows/deploy-backend.yml
+  workflow_dispatch:
+
+permissions:
+  # OIDCトークンの発行に必要。長期アクセスキーは持たせない
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  # ECRのURIとLambda名はCDKの自動生成名の為、AppStackの出力から引く
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      ecr_uri: ${{ steps.outputs.outputs.ecr_uri }}
+      functions: ${{ steps.outputs.outputs.functions }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - id: outputs
+        run: |
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name AppStack \
+            --query 'Stacks[0].Outputs' --output json)
+          read_output() {
+            echo "$outputs" | jq -er --arg key "$1" \
+              '.[] | select(.OutputKey == $key) | .OutputValue'
+          }
+          echo "ecr_uri=$(read_output EcrRepositoryUri)" >> "$GITHUB_OUTPUT"
+          # Dockerfileのターゲット名をキーにして、matrixから引ける形で渡す
+          functions=$(jq -cn \
+            --arg web "$(read_output ApiFunctionName)" \
+            --arg chat "$(read_output ChatFunctionName)" \
+            --arg worker "$(read_output IngestFunctionName)" \
+            '{web: $web, chat: $chat, worker: $worker}')
+          echo "functions=$functions" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      # 1つのターゲットが失敗しても残りは反映させる
+      fail-fast: false
+      matrix:
+        target: [web, chat, worker]
+    env:
+      IMAGE_URI: ${{ needs.resolve.outputs.ecr_uri }}:${{ matrix.target }}-${{ github.sha }}
+      FUNCTION_NAME: ${{ fromJSON(needs.resolve.outputs.functions)[matrix.target] }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      # DockerfileがRUN --mount=type=cacheを使う為buildxが要る
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: apps/backend
+          target: ${{ matrix.target }}
+          # CDKのPlatform.LINUX_AMD64と揃える
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_URI }}
+            ${{ needs.resolve.outputs.ecr_uri }}:${{ matrix.target }}
+          cache-from: type=gha,scope=backend-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=backend-${{ matrix.target }},ignore-error=true
+
+      # 可変タグではなくSHAタグで更新し、どのコミットが動いているかを追えるようにする
+      - name: Update Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name "${FUNCTION_NAME}" \
+            --image-uri "${IMAGE_URI}" \
+            --no-cli-pager
+          aws lambda wait function-updated-v2 --function-name "${FUNCTION_NAME}"

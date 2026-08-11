@@ -437,9 +437,9 @@ textとfilenameはフィルタ不可のMetadataとして登録する。フィル
 
 ### 9.1 CDKスタック構成
 
-インフラはAWS CDKで管理し、DataStack、AppStack、EdgeStack、CiStackの4スタックへ分割する(CiStackは未実装。[12. 開発計画](#12-開発計画)を参照)。
+インフラはAWS CDKで管理し、DataStack、AppStack、EdgeStack、CiStackの4スタックへ分割する。
 
-分割の基準はリソースのライフサイクルである。ユーザーやドキュメントが蓄積されるステートフルなリソースをDataStackへまとめ、入れ替えの多いアプリケーション層と分離する。認証のCognitoも、ユーザーが蓄積されるためDataStackで管理する。
+分割の基準はリソースのライフサイクルである。ユーザーやドキュメントが蓄積されるステートフルなリソースをDataStackへまとめ、入れ替えの多いアプリケーション層と分離する。認証のCognitoも、ユーザーが蓄積されるためDataStackで管理する。CiStackはGitHub ActionsのOIDC IDプロバイダとデプロイ用IAMロールだけを持ち、アプリケーションのリソースを含まない。
 
 SPA配信用S3バケットは例外としてEdgeStackで管理する。アクセス制御にOACを用いるため、バケットポリシーがCloudFrontディストリビューションを参照するからである。
 
@@ -522,7 +522,13 @@ Request IDを全サービスで引き継ぎ、1リクエストの処理をサー
 
 ### 10.2 CI/CD
 
-CI/CDはGitHub Actionsで構成する。
+CI/CDはGitHub Actionsで構成する。プルリクエストではlintとテストによる検証のみを行い、`main`へのマージでデプロイする。
+
+AWSへの認証はOIDCとし、長期アクセスキーはGitHubへ保存しない。CiStackが持つデプロイ用ロールの信頼ポリシーは、リポジトリと`main`ブランチに完全一致で限定する。
+
+ワークフローが行うのはアプリケーションコードの反映だけであり、インフラ定義の変更は`cdk deploy`を手動で実行する。この切り分けにより、CloudFrontのドメイン名を渡す`appDomain`コンテキスト([9.1](#91-cdkスタック構成))をワークフローが扱う必要がなくなり、デプロイ用ロールにCloudFormationの更新権限も持たせずに済む。
+
+デプロイに必要なバケット名や関数名はGitHub側へ複製せず、各スタックの出力を`DescribeStacks`で都度取得する。SPAのビルド時に埋め込むCognitoの設定値も同様に扱い、Cognitoを作り直しても同期ずれが起きないようにする。
 
 フロントエンドのデプロイフローを次に示す。
 

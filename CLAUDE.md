@@ -77,7 +77,8 @@ Target architecture (from `docs/architecture.md`; most of it is not yet implemen
 - **Auth**: Cognito Hosted UI with Authorization Code + PKCE. FastAPI only verifies JWTs via JWKS — never implement password handling or token issuance in the backend.
 - **Data**: DynamoDB single-table design (e.g. `PK=USER#123`, `SK=CHAT#<ULID>`) for documents, chats, and messages. IDs are ULIDs; GSI1 (`GSI1PK=DOC|CHAT`, `GSI1SK=<id>`) serves both cross-user lists and ID-only lookups. S3 Vectors metadata: `documentId` (filterable), `text`/`filename` (non-filterable).
 - **Zero fixed cost is a hard constraint**: no VPC, no NAT, no ECS/EC2/Aurora, no Provisioned Concurrency.
-- **CDK is planned as four stacks**: DataStack, AppStack, EdgeStack, CiStack (all but CiStack are implemented; see `cdk/README.md` for deploy prerequisites like the manual SSM SecureString setup and the `-c appDomain=` second pass). The SPA bucket lives in EdgeStack, not DataStack, because its OAC policy references the distribution.
+- **CDK is four stacks**: DataStack, AppStack, EdgeStack, CiStack (see `cdk/README.md` for deploy prerequisites like the manual SSM SecureString setup and the `-c appDomain=` second pass). The SPA bucket lives in EdgeStack, not DataStack, because its OAC policy references the distribution. CiStack holds only the GitHub Actions OIDC provider and deploy role.
+- **CI/CD**: `.github/workflows/ci.yml` validates PRs (frontend lint/format/build, backend ruff/pytest, cdk typecheck/jest); `deploy-frontend.yml` and `deploy-backend.yml` deploy on merge to `main`. Workflows never run `cdk deploy` — infrastructure changes are applied manually. CDK snapshot tests normalize asset hashes via `cdk/test/helpers.ts`, so backend-only edits no longer break `npm test`.
 - **Logging**: Lambda Powertools (structured logging, metrics, tracing); propagate the request ID across services.
 
 ## TypeScript Code Style
