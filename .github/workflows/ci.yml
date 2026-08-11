@@ -40,7 +40,8 @@ jobs:
         working-directory: apps/backend
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v9
+      # setup-uvはv7までしか移動メジャータグを打っていない為、リリースタグで固定する
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           # uvのバージョン解決とキャッシュキーをbackendのuv.lockに合わせる
           working-directory: apps/backend
