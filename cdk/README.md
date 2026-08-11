@@ -1,6 +1,6 @@
 # CDK
 
-AWS CDK (TypeScript) によるインフラ定義。スタック構成はDataStack / AppStack / EdgeStack(CiStackは今後実装)。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。
+AWS CDK (TypeScript) によるインフラ定義。スタック構成はDataStack / AppStack / EdgeStack / CiStack。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。CiStackはGitHub ActionsがOIDCで引き受けるデプロイ用ロールを持つ。
 
 ## コマンド
 
@@ -33,7 +33,7 @@ AppStackのLambdaはイメージアセット(`apps/backend/`のDockerfile、`web
 npx cdk deploy --all
 ```
 
-各スタックは前のスタックのリソースを参照するため、DataStack → AppStack → EdgeStackの順にデプロイされる。
+各スタックは前のスタックのリソースを参照するため、DataStack → AppStack → EdgeStack → CiStackの順にデプロイされる。
 
 スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。
 
@@ -49,12 +49,42 @@ npx cdk deploy DataStack -c appDomain=dxxxxxxxxxxxxx.cloudfront.net
 
 ### SPAの配信
 
-EdgeStackの`SpaBucketName`出力のバケットへビルド成果物を同期し、CloudFrontのキャッシュを無効化する。
+通常は`main`へのマージで`.github/workflows/deploy-frontend.yml`が実行するため、手動の操作は要らない。手元から反映する場合は、EdgeStackの`SpaBucketName`出力のバケットへビルド成果物を同期し、CloudFrontのキャッシュを無効化する。
 
 ```bash
 (cd ../apps/frontend && npm run build)
 aws s3 sync ../apps/frontend/dist s3://<SpaBucketName出力> --delete
 aws cloudfront create-invalidation --distribution-id <DistributionId出力> --paths '/*'
+```
+
+## CI/CD (CiStack)
+
+CiStackはGitHub ActionsのOIDC IDプロバイダと、Actionsが引き受けるデプロイ用ロール`event-driven-rag-github-actions`を作る。権限はSPAの同期、CloudFrontのキャッシュ無効化、ECRへのプッシュ、Lambdaのイメージ更新、スタック出力の読み取りに限定している。ワークフローは`cdk deploy`を行わないため、CloudFormationの更新権限は持たせていない。
+
+### GitHub側の設定
+
+CiStackのデプロイ後、`DeployRoleArn`出力とAWSアカウントIDをリポジトリのSecretsへ登録する。長期アクセスキーは登録しない。
+
+```bash
+npx cdk deploy CiStack
+gh secret set AWS_ROLE_ARN --body "<DeployRoleArn出力>"
+gh secret set AWS_ACCOUNT_ID --body "$(aws sts get-caller-identity --query Account --output text)"
+```
+
+### 信頼ポリシーのsubクレーム
+
+GitHubは2026年7月15日以降に作成されたリポジトリのOIDCトークンで、subクレームにownerとrepositoryの数値IDを含める(immutable subject claims)。`cdk/lib/ci-stack.ts`はこの形式のsubをハードコードしており、名前だけの旧形式では`AssumeRoleWithWebIdentity`が失敗する。フォークや別リポジトリで使う場合はIDを取り直して定数を差し替える。
+
+```bash
+gh api /repos/<owner>/<repo> --jq '{id, owner_id: .owner.id}'
+```
+
+### バックエンドのイメージ参照先
+
+AppStackのLambdaはイメージアセット(bootstrapのアセットリポジトリ)を参照する一方、CIは常設のECRリポジトリへプッシュして`update-function-code`で差し替える。そのため手動で`cdk deploy AppStack`を実行すると、参照先がアセットリポジトリへ戻る。イメージはローカルのソースからビルドし直されるのでコード自体は正しく、そのまま運用してよい。常設リポジトリへ戻したい場合はバックエンドのワークフローを再実行する。
+
+```bash
+gh workflow run deploy-backend.yml
 ```
 
 ## デプロイ後の設定
