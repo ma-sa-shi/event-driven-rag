@@ -3,6 +3,7 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import { AppStack } from '../lib/app-stack';
 import { DataStack } from '../lib/data-stack';
 import { EdgeStack } from '../lib/edge-stack';
+import { normalizeAssetHashes } from './helpers';
 
 // CloudFrontのマネージドポリシーID(固定値)
 const CACHING_DISABLED = '4135ea2d-6df8-44a3-9df3-4b5a84be39ad';
@@ -180,5 +181,5 @@ describe('S3 OAC', () => {
 });
 
 test('スナップショット', () => {
-  expect(template.toJSON()).toMatchSnapshot();
+  expect(normalizeAssetHashes(template)).toMatchSnapshot();
 });

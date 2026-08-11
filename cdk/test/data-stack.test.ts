@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { DataStack } from '../lib/data-stack';
+import { normalizeAssetHashes } from './helpers';
 
 let template: Template;
 
@@ -203,5 +204,5 @@ describe('Cognito', () => {
 });
 
 test('スナップショット', () => {
-  expect(template.toJSON()).toMatchSnapshot();
+  expect(normalizeAssetHashes(template)).toMatchSnapshot();
 });
