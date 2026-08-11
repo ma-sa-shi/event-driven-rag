@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
 import { AppStack } from '../lib/app-stack';
+import { CiStack } from '../lib/ci-stack';
 import { DataStack } from '../lib/data-stack';
 import { EdgeStack } from '../lib/edge-stack';
 
@@ -12,4 +13,6 @@ const dataStack = new DataStack(app, 'DataStack', { env });
 
 const appStack = new AppStack(app, 'AppStack', { env, dataStack });
 
-new EdgeStack(app, 'EdgeStack', { env, appStack });
+const edgeStack = new EdgeStack(app, 'EdgeStack', { env, appStack });
+
+new CiStack(app, 'CiStack', { env, dataStack, appStack, edgeStack });
