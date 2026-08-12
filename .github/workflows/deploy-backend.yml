@@ -78,6 +78,8 @@ jobs:
           # CDKのPlatform.LINUX_AMD64と揃える
           platforms: linux/amd64
           push: true
+          # 既定のprovenance attestationはOCI image indexを作り、Lambdaが受け付けない
+          provenance: false
           tags: |
             ${{ steps.target.outputs.image_uri }}
             ${{ steps.target.outputs.moving_tag_uri }}
