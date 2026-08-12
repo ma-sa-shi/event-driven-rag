@@ -21,48 +21,20 @@ env:
   AWS_REGION: ap-northeast-1
 
 jobs:
-  # ECRのURIとLambda名はCDKの自動生成名の為、AppStackの出力から引く
-  resolve:
-    runs-on: ubuntu-latest
-    outputs:
-      ecr_uri: ${{ steps.outputs.outputs.ecr_uri }}
-      functions: ${{ steps.outputs.outputs.functions }}
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
-
-      - id: outputs
-        run: |
-          outputs=$(aws cloudformation describe-stacks \
-            --stack-name AppStack \
-            --query 'Stacks[0].Outputs' --output json)
-          read_output() {
-            echo "$outputs" | jq -er --arg key "$1" \
-              '.[] | select(.OutputKey == $key) | .OutputValue'
-          }
-          echo "ecr_uri=$(read_output EcrRepositoryUri)" >> "$GITHUB_OUTPUT"
-          # Dockerfileのターゲット名をキーにして、matrixから引ける形で渡す
-          functions=$(jq -cn \
-            --arg web "$(read_output ApiFunctionName)" \
-            --arg chat "$(read_output ChatFunctionName)" \
-            --arg worker "$(read_output IngestFunctionName)" \
-            '{web: $web, chat: $chat, worker: $worker}')
-          echo "functions=$functions" >> "$GITHUB_OUTPUT"
-
   deploy:
-    needs: resolve
     runs-on: ubuntu-latest
     strategy:
       # 1つのターゲットが失敗しても残りは反映させる
       fail-fast: false
       matrix:
-        target: [web, chat, worker]
-    env:
-      IMAGE_URI: ${{ needs.resolve.outputs.ecr_uri }}:${{ matrix.target }}-${{ github.sha }}
-      FUNCTION_NAME: ${{ fromJSON(needs.resolve.outputs.functions)[matrix.target] }}
+        # targetはDockerfileのステージ名、function_outputはAppStackの出力キー
+        include:
+          - target: web
+            function_output: ApiFunctionName
+          - target: chat
+            function_output: ChatFunctionName
+          - target: worker
+            function_output: IngestFunctionName
     steps:
       - uses: actions/checkout@v7
 
@@ -73,6 +45,28 @@ jobs:
           allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - uses: aws-actions/amazon-ecr-login@v2
+
+      # ECRのURIとLambda名はCDKの自動生成名の為、AppStackの出力から引く。
+      # jobのoutputsはsecretsと一致する値を含むと破棄される。URIの先頭はアカウントIDであり
+      # AWS_ACCOUNT_IDと一致する為、解決はjobを跨がせずここで行う
+      - id: target
+        env:
+          FUNCTION_OUTPUT: ${{ matrix.function_output }}
+        run: |
+          set -euo pipefail
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name AppStack \
+            --query 'Stacks[0].Outputs' --output json)
+          read_output() {
+            echo "$outputs" | jq -er --arg key "$1" \
+              '.[] | select(.OutputKey == $key) | .OutputValue'
+          }
+          ecr_uri=$(read_output EcrRepositoryUri)
+          {
+            echo "image_uri=${ecr_uri}:${{ matrix.target }}-${{ github.sha }}"
+            echo "moving_tag_uri=${ecr_uri}:${{ matrix.target }}"
+            echo "function_name=$(read_output "${FUNCTION_OUTPUT}")"
+          } >> "$GITHUB_OUTPUT"
 
       # DockerfileがRUN --mount=type=cacheを使う為buildxが要る
       - uses: docker/setup-buildx-action@v4
@@ -85,13 +79,16 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_URI }}
-            ${{ needs.resolve.outputs.ecr_uri }}:${{ matrix.target }}
+            ${{ steps.target.outputs.image_uri }}
+            ${{ steps.target.outputs.moving_tag_uri }}
           cache-from: type=gha,scope=backend-${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=backend-${{ matrix.target }},ignore-error=true
 
       # 可変タグではなくSHAタグで更新し、どのコミットが動いているかを追えるようにする
       - name: Update Lambda
+        env:
+          IMAGE_URI: ${{ steps.target.outputs.image_uri }}
+          FUNCTION_NAME: ${{ steps.target.outputs.function_name }}
         run: |
           aws lambda update-function-code \
             --function-name "${FUNCTION_NAME}" \
