@@ -36,6 +36,20 @@ describe('ECR', () => {
       DeletionPolicy: 'Delete',
     });
   });
+
+  test('Lambdaがイメージを取得できるリポジトリポリシーを持つ', () => {
+    template.hasResourceProperties('AWS::ECR::Repository', {
+      RepositoryPolicyText: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Principal: { Service: 'lambda.amazonaws.com' },
+            Action: ['ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'],
+          }),
+        ]),
+      },
+    });
+  });
 });
 
 describe('Lambda', () => {
