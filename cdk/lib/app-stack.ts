@@ -54,6 +54,28 @@ export class AppStack extends cdk.Stack {
       emptyOnDelete: true,
     });
 
+    // bootstrapのアセットリポジトリと違い、常設リポジトリのポリシーは自分で用意する。
+    // Lambdaはポリシーが無い場合に自動追加を試みるが、それにはデプロイ用ロールへ
+    // ecr:GetRepositoryPolicy / SetRepositoryPolicyが要る為、明示的に付ける
+    this.repository.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: "LambdaECRImageRetrievalPolicy",
+        principals: [new iam.ServicePrincipal("lambda.amazonaws.com")],
+        actions: ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"],
+        // サービスプリンシパルを自アカウントの関数へ限定する
+        conditions: {
+          ArnLike: {
+            "aws:sourceARN": this.formatArn({
+              service: "lambda",
+              resource: "function",
+              resourceName: "*",
+              arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+            }),
+          },
+        },
+      }),
+    );
+
     const backendPath = path.join(__dirname, "..", "..", "apps", "backend");
 
     // web: Lambda Web Adapter + uvicorn(api-fn)
