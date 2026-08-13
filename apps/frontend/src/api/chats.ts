@@ -92,8 +92,8 @@ export async function getChat(chatId: string): Promise<ChatDetail> {
   return res.data;
 }
 
-/** API Gatewayの統合タイムアウト(29秒)や回線断では、doneもerrorも来ないままbodyが閉じる。
- * 無言で成功扱いにしない為に使う。
+/** API Gatewayの統合タイムアウトや接続の切断では、doneもerrorも届かないまま
+ * bodyが閉じる。この終わり方を成功と取り違えないよう、中断として利用者に伝える。
  */
 const INTERRUPTED_MESSAGE =
   "回答の生成が中断されました。もう一度お試しください。";

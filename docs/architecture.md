@@ -473,7 +473,7 @@ SSEのストリーミングは、Lambda、Lambda Web Adapter、API Gateway、Clo
 |------|------|------|
 | chat-fn | `AWS_LWA_INVOKE_MODE=response_stream` | Lambda Web Adapterをストリーミングモードで動作させる |
 | API Gateway | Response Transfer Mode: STREAM | 既定の`BUFFERED`ではレスポンス全体が揃うまで送出されず、ストリーミングにならない |
-| API Gateway | 統合タイムアウト: 29秒 | ストリーム全体の上限。サービスクォータの既定値であり、引き上げの承認後に300秒へ変更する |
+| API Gateway | 統合タイムアウト: 300秒 | ストリーム全体の上限。chat-fnのLambdaタイムアウトに合わせる。STREAMの統合は最大15分まで設定できる |
 | CloudFront | Origin Response Timeout: 60秒 | イベントとイベントの間隔の上限。ストリーム全体の上限ではない |
 | CloudFront | Origin KeepAlive Timeout: 20秒 | Originとの接続を維持し、イベントごとの再接続を避ける |
 | CloudFront | 圧縮: 無効 | レスポンスをバッファリングし、イベントの到達を遅らせるため |
