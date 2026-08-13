@@ -17,13 +17,13 @@ import { DataStack } from "./data-stack";
 export const OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/openai-api-key";
 export const COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/cohere-api-key";
 
-// API Gatewayの統合タイムアウトの上限は、サービスクォータ
+// BUFFEREDの統合のタイムアウト上限は、サービスクォータ
 // `Maximum integration timeout in milliseconds`(L-E5AE38E3)で決まる。既定は29秒である。
 // api-fnのLambdaタイムアウトは30秒だが、統合側は上限の29秒で打ち切る
 export const API_INTEGRATION_TIMEOUT = cdk.Duration.seconds(29);
-// SSEはストリーム全体が統合タイムアウトに収まる必要がある。
-// chat-fnのLambdaタイムアウト300秒に合わせるにはクォータの引き上げが要る。引き上げ後に300秒へ変更する
-export const CHAT_INTEGRATION_TIMEOUT = cdk.Duration.seconds(29);
+// ResponseTransferModeがSTREAMの統合は上記クォータの対象外で、最大15分まで設定できる。
+// SSEはストリーム全体が統合タイムアウトに収まる必要があるため、chat-fnのLambdaタイムアウトに合わせる
+export const CHAT_INTEGRATION_TIMEOUT = cdk.Duration.seconds(300);
 
 export interface AppStackProps extends cdk.StackProps {
   dataStack: DataStack;

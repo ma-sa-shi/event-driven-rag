@@ -863,7 +863,7 @@ exports[`スナップショット 1`] = `
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "RestApiDeployment180EC50301fc7f2f1a23e1df66f397976e66adff": {
+    "RestApiDeployment180EC50308259f1af774d364c25ab0382386be85": {
       "DependsOn": [
         "RestApiapiproxyANY9A5715D2",
         "RestApiapiproxyC73394C6",
@@ -894,7 +894,7 @@ exports[`スナップショット 1`] = `
       ],
       "Properties": {
         "DeploymentId": {
-          "Ref": "RestApiDeployment180EC50301fc7f2f1a23e1df66f397976e66adff",
+          "Ref": "RestApiDeployment180EC50308259f1af774d364c25ab0382386be85",
         },
         "MethodSettings": [
           {
@@ -1304,7 +1304,7 @@ exports[`スナップショット 1`] = `
         "Integration": {
           "IntegrationHttpMethod": "POST",
           "ResponseTransferMode": "STREAM",
-          "TimeoutInMillis": 29000,
+          "TimeoutInMillis": 300000,
           "Type": "AWS_PROXY",
           "Uri": {
             "Fn::Join": [
