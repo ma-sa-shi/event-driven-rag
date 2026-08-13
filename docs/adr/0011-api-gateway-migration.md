@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-02
+- Updated: 2026-08-13
 
 ## Context
 
@@ -14,7 +15,7 @@ ADR-0009がAPI Gatewayを採用しなかった理由は次の2点である。
 - Lambda起動前の拒否やレート制限を必要とする事象が発生していなかった
 - SSEは中間層が増えるほどバッファリングやタイムアウトで壊れやすく、REST APIのレスポンスストリーミングによる動作を検証できていなかった
 
-SSEを配信する条件は揃っている。統合の`responseTransferMode`はaws-cdk-lib 2.261.0のL2の`IntegrationOptions`で設定でき、統合タイムアウトの上限もサービスクォータの引き上げで最大15分まで拡張できる。Self-RAGが最大8回のLLM呼び出しを行うチャットも統合タイムアウトへ収まる。
+SSEを配信する条件は揃っている。統合の`responseTransferMode`はaws-cdk-lib 2.261.0のL2の`IntegrationOptions`で設定できる。統合タイムアウトはサービスクォータ`Maximum integration timeout in milliseconds`に縛られるが、これが適用されるのは`BUFFERED`の統合のみであり、[`STREAM`の統合](https://docs.aws.amazon.com/apigateway/latest/developerguide/response-transfer-mode.html)は申請なしで最大15分まで設定できる。Self-RAGが最大8回のLLM呼び出しを行うチャットも統合タイムアウトへ収まる。
 
 ## Decision
 
@@ -41,7 +42,8 @@ API GatewayにCloudFrontからのアクセスのみを許可するリソース�
 デメリット・制約
 
 - SSEのストリームを継続させるための調整箇所が、CloudFrontに加えてAPI Gateway側にも増える
-- 統合タイムアウトはサービスクォータ`Maximum integration timeout in milliseconds`の上限に縛られる。既定値は29秒であり、chat-fnのLambdaタイムアウトに合わせるには引き上げの申請が要る。引き上げが反映されるまではSSEが29秒で打ち切られる
+- api-fnの統合は`BUFFERED`であり、統合タイムアウトはサービスクォータの既定値29秒に縛られる。これを超える処理を置く場合は引き上げの申請が要る
+- `STREAM`の統合にはイベント間隔のアイドルタイムアウトがあり、リージョナルエンドポイントでは5分となる。本構成ではCloudFrontの60秒が先に効くため制約として表面化しない
 - JWTの検証がオーソライザとFastAPIの2箇所になる。検証の設定を変更する際は両方を更新する必要がある
 - API Gatewayのリクエスト課金が加わる
 - API Gatewayのエンドポイントもインターネットから直接到達可能である。Function URLと同じく、CloudFrontのビヘイビアやキャッシュ設定は迂回できる
