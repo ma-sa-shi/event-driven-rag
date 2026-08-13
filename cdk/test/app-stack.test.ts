@@ -194,14 +194,16 @@ describe('API Gateway', () => {
     }
   });
 
-  test('統合タイムアウトがサービスクォータの上限を超えない', () => {
+  test('統合タイムアウトが上限を超えない', () => {
     // 上限を超えるとデプロイがInvalidRequestで失敗する。
-    // クォータ`Maximum integration timeout in milliseconds`(L-E5AE38E3)の既定値
-    const quotaLimitMillis = 29_000;
+    // BUFFEREDはクォータ`Maximum integration timeout in milliseconds`(L-E5AE38E3)の
+    // 既定値に縛られる。STREAMはクォータの対象外で、上限は15分となる
+    const bufferedLimitMillis = 29_000;
+    const streamLimitMillis = 900_000;
     for (const props of methodsByPath().values()) {
-      expect(props.Integration.TimeoutInMillis).toBeLessThanOrEqual(
-        quotaLimitMillis,
-      );
+      const isStream = props.Integration.ResponseTransferMode === 'STREAM';
+      const limit = isStream ? streamLimitMillis : bufferedLimitMillis;
+      expect(props.Integration.TimeoutInMillis).toBeLessThanOrEqual(limit);
     }
   });
 
