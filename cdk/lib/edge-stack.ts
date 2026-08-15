@@ -5,9 +5,12 @@ import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import { AppStack } from "./app-stack";
+import { DataStack } from "./data-stack";
 
 export interface EdgeStackProps extends cdk.StackProps {
   appStack: AppStack;
+  // CSPのconnect-srcにCognitoとドキュメントバケットのオリジンを載せる為に参照する
+  dataStack: DataStack;
   // 代替ドメイン名と証明書は必ず対で必要な為、1つのプロパティにまとめる
   customDomain?: {
     domainName: string;
@@ -29,7 +32,7 @@ export class EdgeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
 
-    const { appStack, customDomain } = props;
+    const { appStack, dataStack, customDomain } = props;
 
     // SPA静的ファイル配信用バケット。CloudFront OAC経由でのみ読み取れる
     this.spaBucket = new s3.Bucket(this, "SpaBucket", {
@@ -89,11 +92,56 @@ function handler(event) {
 `),
     });
 
+    // トークンをlocalStorageへ置く判断(ADR-0010)の緩和策。XSSが起きても外部へ送信させない。
+    // SPAが同一オリジン外へ出す通信はこの3つだけで、他は全てCloudFront経由に収まる(設計書9.2)。
+    // issuerの末尾の'/'は必須。CSPのパスは末尾がスラッシュのときだけ前方一致になり、
+    // 付けないと完全一致となってoidc-client-tsが読む/.well-known配下が弾かれる
+    const connectSources = [
+      "'self'",
+      `${dataStack.userPool.userPoolProviderUrl}/`,
+      dataStack.userPoolDomain.baseUrl(),
+      `https://${dataStack.documentsBucket.bucketRegionalDomainName}`,
+    ];
+
+    // object-src・base-uri・form-actionはdefault-srcのフォールバックが効かない為、個別に指定する
+    const contentSecurityPolicy = [
+      "default-src 'self'",
+      `connect-src ${connectSources.join(" ")}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; ");
+
+    const spaResponseHeaders = new cloudfront.ResponseHeadersPolicy(
+      this,
+      "SpaResponseHeaders",
+      {
+        securityHeadersBehavior: {
+          contentSecurityPolicy: { contentSecurityPolicy, override: true },
+          // preloadはapexドメイン単位の登録になる為、サブドメイン配信の本システムでは付けない
+          strictTransportSecurity: {
+            accessControlMaxAge: cdk.Duration.days(730),
+            includeSubdomains: true,
+            override: true,
+          },
+          contentTypeOptions: { override: true },
+          referrerPolicy: {
+            referrerPolicy:
+              cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+            override: true,
+          },
+        },
+      },
+    );
+
     this.distribution = new cloudfront.Distribution(this, "Distribution", {
       defaultBehavior: {
         origin: spaOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        // APIのJSONレスポンスにCSPは効かない為、SPAを返す本ビヘイビアにのみ適用する
+        responseHeadersPolicy: spaResponseHeaders,
         functionAssociations: [
           {
             function: spaRouterFunction,

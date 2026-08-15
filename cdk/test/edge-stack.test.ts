@@ -30,7 +30,9 @@ function synthEdgeStack(withCustomDomain: boolean) {
   const appStack = new AppStack(app, 'TestAppStack', { env, dataStack });
 
   if (!withCustomDomain) {
-    return Template.fromStack(new EdgeStack(app, 'TestEdgeStack', { env, appStack }));
+    return Template.fromStack(
+      new EdgeStack(app, 'TestEdgeStack', { env, appStack, dataStack }),
+    );
   }
 
   const certificateStack = new CertificateStack(app, 'TestCertificateStack', {
@@ -40,6 +42,7 @@ function synthEdgeStack(withCustomDomain: boolean) {
   const edgeStack = new EdgeStack(app, 'TestEdgeStack', {
     env,
     appStack,
+    dataStack,
     customDomain: {
       domainName: DOMAIN_NAME,
       certificate: certificateStack.certificate,
@@ -189,6 +192,65 @@ describe('SPAルーティング', () => {
   test('カスタムエラーレスポンスは使わない', () => {
     // ディストリビューション全体に効く為、FastAPIの403/404 JSONまで書き換えてしまう
     expect(distributionConfig.CustomErrorResponses).toBeUndefined();
+  });
+});
+
+describe('レスポンスヘッダー', () => {
+  function securityHeadersConfig() {
+    const [policy] = Object.values(
+      template.findResources('AWS::CloudFront::ResponseHeadersPolicy'),
+    );
+    return policy.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig;
+  }
+
+  test('SPAのデフォルトビヘイビアにのみポリシーを適用する', () => {
+    template.resourceCountIs('AWS::CloudFront::ResponseHeadersPolicy', 1);
+    expect(distributionConfig.DefaultCacheBehavior.ResponseHeadersPolicyId).toBeDefined();
+    // APIのJSONレスポンスにCSPは効かない
+    for (const behavior of distributionConfig.CacheBehaviors) {
+      expect(behavior.ResponseHeadersPolicyId).toBeUndefined();
+    }
+  });
+
+  test('CSPはインラインを許可せずフレーム埋め込みを禁止する(ADR-0010)', () => {
+    const csp = JSON.stringify(
+      securityHeadersConfig().ContentSecurityPolicy.ContentSecurityPolicy,
+    );
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).not.toContain('unsafe-inline');
+    expect(csp).toContain("frame-ancestors 'none'");
+    // default-srcのフォールバックが効かない為、個別指定が要る
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("form-action 'self'");
+  });
+
+  test('connect-srcはDataStackの3オリジンだけを追加で許可する', () => {
+    const [, parts] =
+      securityHeadersConfig().ContentSecurityPolicy.ContentSecurityPolicy['Fn::Join'];
+    // Cognito issuer、Hosted UI、ドキュメントバケットの3つ。
+    // スタック間参照になる為、ホスト名は文字列としてテンプレートに現れない
+    const references = parts.filter((part: unknown) => typeof part !== 'string');
+    expect(references).toHaveLength(3);
+
+    const [head] = parts;
+    expect(head).toContain("connect-src 'self' ");
+    // issuerの直後の'/'。CSPのパスは末尾がスラッシュのときだけ前方一致になり、
+    // 付けないと.well-known配下のディスカバリとJWKSが弾かれる
+    expect(parts[parts.indexOf(references[0]) + 1]).toMatch(/^\//);
+  });
+
+  test('HTTPSの強制と型推測の禁止、リファラの抑制を行う', () => {
+    const config = securityHeadersConfig();
+    expect(config.StrictTransportSecurity).toEqual({
+      AccessControlMaxAgeSec: 63072000,
+      IncludeSubdomains: true,
+      Override: true,
+    });
+    expect(config.ContentTypeOptions).toEqual({ Override: true });
+    expect(config.ReferrerPolicy.ReferrerPolicy).toBe(
+      'strict-origin-when-cross-origin',
+    );
   });
 });
 

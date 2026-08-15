@@ -1,9 +1,15 @@
 import boto3
+from botocore.config import Config
 
 # presigned URLはLambdaロールで署名されるため、実行ロールに対象操作の権限が必要
 # 長すぎるとURL漏洩時のリスクが増すため15分に制限
 UPLOAD_URL_EXPIRES_IN = 900
 DOWNLOAD_URL_EXPIRES_IN = 900
+
+# 既定のboto3はリージョンを落としたグローバルエンドポイント(<bucket>.s3.amazonaws.com)へ
+# 書き換え、非推奨のSigV2で署名する。SPAはこのURLへブラウザから直接PUTするため、
+# 発行先のホストはCloudFrontのCSP connect-src(設計書9.2)と一致させる必要がある
+_PRESIGN_CONFIG = Config(signature_version="s3v4", s3={"addressing_style": "virtual"})
 
 
 class DocumentStorage:
@@ -11,7 +17,7 @@ class DocumentStorage:
 
     def __init__(self, bucket_name: str) -> None:
         self._bucket_name = bucket_name
-        self._client = boto3.client("s3")
+        self._client = boto3.client("s3", config=_PRESIGN_CONFIG)
 
     def presign_put(self, key: str, content_type: str | None = None) -> str:
         params: dict = {"Bucket": self._bucket_name, "Key": key}
