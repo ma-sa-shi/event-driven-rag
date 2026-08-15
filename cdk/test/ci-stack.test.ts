@@ -14,7 +14,7 @@ beforeAll(() => {
   const app = new cdk.App();
   const dataStack = new DataStack(app, 'TestDataStack');
   const appStack = new AppStack(app, 'TestAppStack', { dataStack });
-  const edgeStack = new EdgeStack(app, 'TestEdgeStack', { appStack });
+  const edgeStack = new EdgeStack(app, 'TestEdgeStack', { appStack, dataStack });
   const ciStack = new CiStack(app, 'TestCiStack', {
     dataStack,
     appStack,
