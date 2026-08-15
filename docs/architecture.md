@@ -437,23 +437,27 @@ textとfilenameはフィルタ不可のMetadataとして登録する。フィル
 
 ### 9.1 CDKスタック構成
 
-インフラはAWS CDKで管理し、DataStack、AppStack、EdgeStack、CiStackの4スタックへ分割する。
+インフラはAWS CDKで管理し、CertificateStack、DataStack、AppStack、EdgeStack、CiStackの5スタックへ分割する。
 
 分割の基準はリソースのライフサイクルである。ユーザーやドキュメントが蓄積されるステートフルなリソースをDataStackへまとめ、入れ替えの多いアプリケーション層と分離する。認証のCognitoも、ユーザーが蓄積されるためDataStackで管理する。CiStackはGitHub ActionsのOIDC IDプロバイダとデプロイ用IAMロールだけを持ち、アプリケーションのリソースを含まない。
 
 SPA配信用S3バケットは例外としてEdgeStackで管理する。アクセス制御にOACを用いるため、バケットポリシーがCloudFrontディストリビューションを参照するからである。
 
+CertificateStackだけは、ライフサイクルではなくリージョンを理由に分けている。CloudFrontへ関連付けられる証明書はus-east-1のものに限られるため、公開ドメインのACM証明書だけをこのスタックへ切り出し、他の4スタックが置かれたap-northeast-1とは別のリージョンへデプロイする。スタック間の値の受け渡しはデプロイ時に参照先スタックの出力を読む方式であり、リージョンを跨いでも受け渡し用のリソースは増えない。
+
 #### appDomainによる循環参照の回避
 
 スタック間の依存は EdgeStack → AppStack → DataStack の一方向である。CloudFrontはAPI Gatewayを参照し、LambdaはDynamoDBやS3を参照する。
 
-一方、CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンには、CloudFrontのドメイン名が必要となる。ここでDataStackがEdgeStackを参照すると、上記の依存と合わせて循環する。
+一方、CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンには、SPAの公開ドメインが必要となる。このドメインを受けるのはCloudFrontであり、DataStackがEdgeStackを参照すると上記の依存と合わせて循環する。
 
-そのためドメイン名はスタック間で受け渡さず、CDKコンテキストの`appDomain`として外部から与える。初回はEdgeStackを構築し、払い出されたドメイン名を指定してDataStackを再デプロイする(手順は`cdk/README.md`)。
+そのためDataStackはEdgeStackを参照せず、ドメイン名を外部から受け取る。受け渡しにはCDKコンテキストの`appDomain`を用い、値は`cdk.json`へ既定値として置く。独自ドメインのサブドメインを使う構成では値がデプロイ前に確定するため、デプロイのたびに指定する必要はなく、指定漏れによって設定が巻き戻ることもない。
 
 環境は1ステージのみとする。dev/prodの分離はせず、開発スピードを優先する。
 
 ### 9.2 CloudFront
+
+SPAの公開URLは`https://rag.business-efficiency.pro`である。CloudFrontの代替ドメイン名にこのサブドメインを設定し、ACMがDNS検証で発行した証明書を関連付ける。DNSはドメインを取得したお名前.comで管理するため、証明書の検証レコードとサブドメインのCNAMEはCDKの管理外となる。サブドメインを採用した理由は[ADR-0013](./adr/0013-custom-domain-subdomain-external-dns.md)に記載する。
 
 CloudFrontはパスに応じて3つのOriginへ振り分ける。
 
@@ -526,7 +530,7 @@ CI/CDはGitHub Actionsで構成する。プルリクエストではlintとテス
 
 AWSへの認証はOIDCとし、長期アクセスキーはGitHubへ保存しない。CiStackが持つデプロイ用ロールの信頼ポリシーは、リポジトリと`main`ブランチに完全一致で限定する。
 
-ワークフローが行うのはアプリケーションコードの反映だけであり、インフラ定義の変更は`cdk deploy`を手動で実行する。この切り分けにより、CloudFrontのドメイン名を渡す`appDomain`コンテキスト([9.1](#91-cdkスタック構成))をワークフローが扱う必要がなくなり、デプロイ用ロールにCloudFormationの更新権限も持たせずに済む。
+ワークフローが行うのはアプリケーションコードの反映だけであり、インフラ定義の変更は`cdk deploy`を手動で実行する。この切り分けにより、公開ドメインを渡す`appDomain`コンテキスト([9.1](#91-cdkスタック構成))をワークフローが扱う必要がなくなり、デプロイ用ロールにCloudFormationの更新権限も持たせずに済む。
 
 デプロイに必要なバケット名や関数名はGitHub側へ複製せず、各スタックの出力を`DescribeStacks`で都度取得する。SPAのビルド時に埋め込むCognitoの設定値も同様に扱い、Cognitoを作り直しても同期ずれが起きないようにする。
 
