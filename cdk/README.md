@@ -1,6 +1,6 @@
 # CDK
 
-AWS CDK (TypeScript) によるインフラ定義。スタック構成はDataStack / AppStack / EdgeStack / CiStack。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。CiStackはGitHub ActionsがOIDCで引き受けるデプロイ用ロールを持つ。
+AWS CDK (TypeScript) によるインフラ定義。スタック構成はCertificateStack / DataStack / AppStack / EdgeStack / CiStack。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。CertificateStackは公開ドメインのACM証明書だけを持ち、CloudFrontの制約からus-east-1に置く。CiStackはGitHub ActionsがOIDCで引き受けるデプロイ用ロールを持つ。
 
 ## コマンド
 
@@ -27,25 +27,47 @@ CDKはこのパラメータを名前参照してLambdaに読み取り権限を�
 
 AppStackのLambdaはイメージアセット(`apps/backend/`のDockerfile、`web` / `chat` / `worker`ターゲット)としてデプロイ時にビルドされるため、`cdk deploy`にはDockerデーモンが必要。
 
+### ACM証明書の発行(初回のみ)
+
+公開ドメインは`rag.business-efficiency.pro`で、CloudFrontへ関連付ける証明書はus-east-1になければならない(ADR-0013)。CertificateStackだけをus-east-1へデプロイするため、このリージョンのブートストラップが必要になる。
+
+```bash
+npx cdk bootstrap aws://<AWSアカウントID>/us-east-1
+npx cdk deploy CertificateStack
+```
+
+DNSはお名前.comで管理しているため、検証用レコードはCDKの管理外となる。`deploy`は検証待ちのまま進まないので、別のシェルで登録するレコードの値を取得する。
+
+```bash
+aws acm list-certificates --region us-east-1 \
+  --query "CertificateSummaryList[?DomainName=='rag.business-efficiency.pro'].CertificateArn"
+aws acm describe-certificate --region us-east-1 --certificate-arn <取得したARN> \
+  --query 'Certificate.DomainValidationOptions[].ResourceRecord'
+```
+
+得られた`Name`と`Value`をお名前.comのDNSレコード設定へCNAMEとして登録する。ホスト名の入力欄には、末尾のドメイン部分`.business-efficiency.pro`を除いた値を入れる。ACMがレコードを確認すると証明書が発行され、止まっていた`deploy`が完了する。
+
 ## デプロイ
 
 ```bash
 npx cdk deploy --all
 ```
 
-各スタックは前のスタックのリソースを参照するため、DataStack → AppStack → EdgeStack → CiStackの順にデプロイされる。
+各スタックは他のスタックのリソースを参照するため、DataStack → AppStack → EdgeStack → CiStackの順にデプロイされる。EdgeStackはCloudFrontの代替ドメイン名へ証明書を関連付けるため、AppStackに加えてCertificateStackにも依存する。
 
-スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。
+スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。証明書のようにリージョンを跨ぐ参照も同じ仕組みで解決されるため、受け渡し用のカスタムリソースは作られない。
 
-### CloudFrontドメインの反映(初回のみ)
+### 公開ドメインのDNS設定(初回のみ)
 
-CognitoのコールバックURLとドキュメント保存用バケットのCORS許可オリジンにはCloudFrontのドメインが必要だが、DataStackからEdgeStackを参照するとスタック間が循環する。そのためドメインはコンテキスト`appDomain`で渡す。初回デプロイ後にEdgeStackの`DistributionDomainName`出力を確認し、次を実行する。
+EdgeStackのデプロイ後、`DistributionDomainName`出力を確認し、`rag`のCNAMEとしてお名前.comのDNSレコード設定へ登録する。
 
-```bash
-npx cdk deploy DataStack -c appDomain=dxxxxxxxxxxxxx.cloudfront.net
+```text
+ホスト名: rag
+TYPE:     CNAME
+VALUE:    dxxxxxxxxxxxxx.cloudfront.net
 ```
 
-以降のデプロイでも同じ`-c appDomain=...`を付ける。省略するとコールバックURLとCORSがローカル開発向けの設定へ戻る。
+CognitoのコールバックURLとドキュメント保存用バケットのCORS許可オリジンにも公開ドメインが必要だが、DataStackからEdgeStackを参照するとスタック間が循環する。そのためドメインはコンテキスト`appDomain`で渡している。ドメインは`cdk.json`のcontextへ既定値として置いているため、通常のデプロイで`-c appDomain=...`を指定する必要はない。公開ドメインを変更するときは`cdk.json`を書き換える。
 
 ### SPAの配信
 
