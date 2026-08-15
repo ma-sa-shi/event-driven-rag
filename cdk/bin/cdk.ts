@@ -33,6 +33,7 @@ const appStack = new AppStack(app, 'AppStack', { env, dataStack });
 const edgeStack = new EdgeStack(app, 'EdgeStack', {
   env,
   appStack,
+  dataStack,
   customDomain: { domainName: appDomain, certificate: certificateStack.certificate },
 });
 

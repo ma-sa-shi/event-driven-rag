@@ -142,6 +142,9 @@ exports[`スナップショット 1`] = `
                 },
               },
             ],
+            "ResponseHeadersPolicyId": {
+              "Ref": "SpaResponseHeadersBB5A00A9",
+            },
             "TargetOriginId": "TestEdgeStackDistributionOrigin18490990F",
             "ViewerProtocolPolicy": "redirect-to-https",
           },
@@ -519,6 +522,63 @@ exports[`スナップショット 1`] = `
         },
       },
       "Type": "AWS::S3::BucketPolicy",
+    },
+    "SpaResponseHeadersBB5A00A9": {
+      "Properties": {
+        "ResponseHeadersPolicyConfig": {
+          "Name": "TestEdgeStackSpaResponseHeaders9C64C845",
+          "SecurityHeadersConfig": {
+            "ContentSecurityPolicy": {
+              "ContentSecurityPolicy": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "default-src 'self'; connect-src 'self' ",
+                    {
+                      "Fn::GetStackOutput": {
+                        "OutputName": "PublishOutputFnGetAttUserPool6BA7E5F2ProviderURL015E0733",
+                        "Region": "ap-northeast-1",
+                        "StackName": "TestDataStack",
+                      },
+                    },
+                    "/ https://",
+                    {
+                      "Fn::GetStackOutput": {
+                        "OutputName": "PublishOutputRefUserPoolHostedUiDomainE021B0B632E878CC",
+                        "Region": "ap-northeast-1",
+                        "StackName": "TestDataStack",
+                      },
+                    },
+                    ".auth.ap-northeast-1.amazoncognito.com https://",
+                    {
+                      "Fn::GetStackOutput": {
+                        "OutputName": "PublishOutputFnGetAttDocumentsBucket9EC9DEB9RegionalDomainName36DBBEFC",
+                        "Region": "ap-northeast-1",
+                        "StackName": "TestDataStack",
+                      },
+                    },
+                    "; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+                  ],
+                ],
+              },
+              "Override": true,
+            },
+            "ContentTypeOptions": {
+              "Override": true,
+            },
+            "ReferrerPolicy": {
+              "Override": true,
+              "ReferrerPolicy": "strict-origin-when-cross-origin",
+            },
+            "StrictTransportSecurity": {
+              "AccessControlMaxAgeSec": 63072000,
+              "IncludeSubdomains": true,
+              "Override": true,
+            },
+          },
+        },
+      },
+      "Type": "AWS::CloudFront::ResponseHeadersPolicy",
     },
     "SpaRouterEC02D323": {
       "Properties": {
