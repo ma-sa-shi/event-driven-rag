@@ -447,7 +447,7 @@ CertificateStackだけは、ライフサイクルではなくリージョンを�
 
 #### appDomainによる循環参照の回避
 
-スタック間の依存は EdgeStack → AppStack → DataStack の一方向である。CloudFrontはAPI Gatewayを参照し、LambdaはDynamoDBやS3を参照する。
+スタック間の依存は EdgeStack → AppStack → DataStack の一方向である。CloudFrontはAPI Gatewayを参照し、LambdaはDynamoDBやS3を参照する。EdgeStackはDataStackも直接参照する。CSPの`connect-src`にCognitoとドキュメント用S3バケットのオリジンを載せるためであり([9.2](#92-cloudfront))、依存の向きは変わらない。
 
 一方、CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンには、SPAの公開ドメインが必要となる。このドメインを受けるのはCloudFrontであり、DataStackがEdgeStackを参照すると上記の依存と合わせて循環する。
 
@@ -485,6 +485,42 @@ SSEのストリーミングは、Lambda、Lambda Web Adapter、API Gateway、Clo
 ストリーム全体の上限は統合タイムアウトであり、CloudFrontの60秒はイベント間隔の上限として働く。KeepAliveはOriginとの接続を維持し、イベントごとの再接続を避ける。
 
 SPAはクライアントサイドルーティングを行うため、`/chats/{chatId}`のようなパスに対応するオブジェクトはS3に存在しない。拡張子を持たないリクエストのURIを`/index.html`へ書き換えるCloudFront Functionを、S3向けのビヘイビアにのみ適用する。CloudFrontのカスタムエラーレスポンスはディストリビューション全体へ適用され、APIが返すエラーレスポンスまで書き換えてしまうため利用しない。
+
+#### レスポンスヘッダー
+
+S3向けのビヘイビアに`ResponseHeadersPolicy`を適用し、セキュリティヘッダーを付与する。API向けのビヘイビアには適用しない。CSPが意味を持つのは、ブラウザがHTMLとして解釈するSPAの経路だけだからである。
+
+中心となるのはContent-Security-Policyである。アクセストークンをlocalStorageへ保存する判断([ADR-0010](./adr/0010-token-storage-localstorage.md))に対する緩和策であり、XSSが起きてもスクリプトの読み込みと外部への送信を成立させないことを狙う。
+
+```text
+default-src 'self';
+connect-src 'self' <Cognitoのissuer>/ <Hosted UIのドメイン> <ドキュメント用S3バケット>;
+object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+```
+
+SPAが同一オリジンの外へ発行する通信は次の3つに限られるため、`connect-src`ではこれらだけを追加で許可する。API呼び出しとチャットのSSEはいずれもCloudFront経由の同一オリジンであり、`'self'`で足りる。
+
+| 許可先 | 用途 |
+|------|------|
+| Cognitoのissuer | `oidc-client-ts`が読むディスカバリ文書とJWKS |
+| Hosted UIのドメイン | トークンエンドポイント。issuerとはホストが分かれる |
+| ドキュメント用S3バケット | 署名付きURLへの直接PUT([6.1](#61-アップロードフロー)) |
+
+ドキュメント用S3バケットについては、許可するホストとapi-fnが発行する署名付きURLのホストが一致していなければならない。boto3は既定でリージョンを含まないグローバルエンドポイントへ書き換え、非推奨のSigV2で署名するため、SigV4とvirtual-hosted styleを明示して発行する。
+
+一方、サインインの開始とサインアウトはHosted UIへの画面遷移であり、原本の閲覧も署名付きURLへの遷移であるため、いずれも`connect-src`の対象にはならない。
+
+issuerには末尾のスラッシュを付ける。CSPのパスは末尾がスラッシュのときだけ前方一致として扱われ、付けなければ完全一致の判定になって`/.well-known/`配下が弾かれる。ホストではなくUser Poolのパスまで指定することで、同一ホスト上にある他のUser Pool宛ての送信を防ぐ。
+
+Viteのビルド成果物は外部のJSモジュールとCSSだけで、インラインスクリプトもインラインスタイルも含まない。そのため`'unsafe-inline'`は指定しない。`object-src`、`base-uri`、`form-action`は`default-src`のフォールバックが働かないため個別に指定する。`X-Frame-Options`は`frame-ancestors`が置き換えるため設定しない。
+
+同じポリシーで次のヘッダーも配信する。
+
+| ヘッダー | 値 | 目的 |
+|------|------|------|
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains` | 以降のアクセスをHTTPSに固定する。preloadリストへの登録はapexドメイン単位となるため付けない |
+| `X-Content-Type-Options` | `nosniff` | Content-Typeを無視したMIMEスニッフィングを防ぐ |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | クロスオリジンへはオリジンのみを送り、パスやクエリを渡さない |
 
 ### 9.3 API Gateway
 
