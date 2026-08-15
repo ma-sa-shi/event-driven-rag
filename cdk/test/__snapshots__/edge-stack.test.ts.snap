@@ -36,9 +36,7 @@ exports[`スナップショット 1`] = `
       ],
       "Properties": {
         "Code": {
-          "S3Bucket": {
-            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
-          },
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
           "S3Key": "<ASSET_HASH>.zip",
         },
         "Description": {
@@ -91,6 +89,9 @@ exports[`スナップショット 1`] = `
     "Distribution830FAC52": {
       "Properties": {
         "DistributionConfig": {
+          "Aliases": [
+            "rag.business-efficiency.pro",
+          ],
           "CacheBehaviors": [
             {
               "AllowedMethods": [
@@ -188,19 +189,23 @@ exports[`スナップショット 1`] = `
                           [
                             "https://",
                             {
-                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                              "Fn::GetStackOutput": {
+                                "OutputName": "PublishOutputRefRestApi0C43BF4BBED2479D",
+                                "Region": "ap-northeast-1",
+                                "StackName": "TestAppStack",
+                              },
                             },
-                            ".execute-api.",
-                            {
-                              "Ref": "AWS::Region",
-                            },
-                            ".",
+                            ".execute-api.ap-northeast-1.",
                             {
                               "Ref": "AWS::URLSuffix",
                             },
                             "/",
                             {
-                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                              "Fn::GetStackOutput": {
+                                "OutputName": "PublishOutputRefRestApiDeploymentStageprod3855DE66E31B2E84",
+                                "Region": "ap-northeast-1",
+                                "StackName": "TestAppStack",
+                              },
                             },
                             "/",
                           ],
@@ -228,19 +233,23 @@ exports[`スナップショット 1`] = `
                                 [
                                   "https://",
                                   {
-                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                                    "Fn::GetStackOutput": {
+                                      "OutputName": "PublishOutputRefRestApi0C43BF4BBED2479D",
+                                      "Region": "ap-northeast-1",
+                                      "StackName": "TestAppStack",
+                                    },
                                   },
-                                  ".execute-api.",
-                                  {
-                                    "Ref": "AWS::Region",
-                                  },
-                                  ".",
+                                  ".execute-api.ap-northeast-1.",
                                   {
                                     "Ref": "AWS::URLSuffix",
                                   },
                                   "/",
                                   {
-                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                                    "Fn::GetStackOutput": {
+                                      "OutputName": "PublishOutputRefRestApiDeploymentStageprod3855DE66E31B2E84",
+                                      "Region": "ap-northeast-1",
+                                      "StackName": "TestAppStack",
+                                    },
                                   },
                                   "/",
                                 ],
@@ -275,19 +284,23 @@ exports[`スナップショット 1`] = `
                           [
                             "https://",
                             {
-                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                              "Fn::GetStackOutput": {
+                                "OutputName": "PublishOutputRefRestApi0C43BF4BBED2479D",
+                                "Region": "ap-northeast-1",
+                                "StackName": "TestAppStack",
+                              },
                             },
-                            ".execute-api.",
-                            {
-                              "Ref": "AWS::Region",
-                            },
-                            ".",
+                            ".execute-api.ap-northeast-1.",
                             {
                               "Ref": "AWS::URLSuffix",
                             },
                             "/",
                             {
-                              "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                              "Fn::GetStackOutput": {
+                                "OutputName": "PublishOutputRefRestApiDeploymentStageprod3855DE66E31B2E84",
+                                "Region": "ap-northeast-1",
+                                "StackName": "TestAppStack",
+                              },
                             },
                             "/",
                           ],
@@ -315,19 +328,23 @@ exports[`スナップショット 1`] = `
                                 [
                                   "https://",
                                   {
-                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApi0C43BF4B00053745",
+                                    "Fn::GetStackOutput": {
+                                      "OutputName": "PublishOutputRefRestApi0C43BF4BBED2479D",
+                                      "Region": "ap-northeast-1",
+                                      "StackName": "TestAppStack",
+                                    },
                                   },
-                                  ".execute-api.",
-                                  {
-                                    "Ref": "AWS::Region",
-                                  },
-                                  ".",
+                                  ".execute-api.ap-northeast-1.",
                                   {
                                     "Ref": "AWS::URLSuffix",
                                   },
                                   "/",
                                   {
-                                    "Fn::ImportValue": "TestAppStack:ExportsOutputRefRestApiDeploymentStageprod3855DE66D0316BB8",
+                                    "Fn::GetStackOutput": {
+                                      "OutputName": "PublishOutputRefRestApiDeploymentStageprod3855DE66E31B2E84",
+                                      "Region": "ap-northeast-1",
+                                      "StackName": "TestAppStack",
+                                    },
                                   },
                                   "/",
                                 ],
@@ -343,6 +360,17 @@ exports[`スナップショット 1`] = `
             },
           ],
           "PriceClass": "PriceClass_200",
+          "ViewerCertificate": {
+            "AcmCertificateArn": {
+              "Fn::GetStackOutput": {
+                "OutputName": "PublishOutputRefCertificate4E7ABB08FF286F7F",
+                "Region": "us-east-1",
+                "StackName": "TestCertificateStack",
+              },
+            },
+            "MinimumProtocolVersion": "TLSv1.2_2021",
+            "SslSupportMethod": "sni-only",
+          },
         },
       },
       "Type": "AWS::CloudFront::Distribution",
@@ -507,30 +535,10 @@ function handler(event) {
 }
 ",
         "FunctionConfig": {
-          "Comment": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Ref": "AWS::Region",
-                },
-                "TestEdgeStackSpaRouterC64E7DD7",
-              ],
-            ],
-          },
+          "Comment": "ap-northeast-1TestEdgeStackSpaRouterC64E7DD7",
           "Runtime": "cloudfront-js-2.0",
         },
-        "Name": {
-          "Fn::Join": [
-            "",
-            [
-              {
-                "Ref": "AWS::Region",
-              },
-              "TestEdgeStackSpaRouterC64E7DD7",
-            ],
-          ],
-        },
+        "Name": "ap-northeast-1TestEdgeStackSpaRouterC64E7DD7",
       },
       "Type": "AWS::CloudFront::Function",
     },
