@@ -28,9 +28,9 @@ export class DataStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // EdgeStackのCloudFrontドメイン。DataStackからEdgeStackを参照すると循環参照になる為、
-    // デプロイ時のコンテキスト(-c appDomain=dxxxx.cloudfront.net)で受け取る。
-    // 初回はappDomain無しでデプロイし、EdgeStack作成後に付けて再デプロイする(cdk/README.md)
+    // SPAの公開ドメイン。DataStackからEdgeStackを参照すると循環参照になる為、
+    // スタック間では渡さずコンテキストで受け取る(既定値はcdk.json)。
+    // 独自ドメインの採用で値がデプロイ前に確定する為、再デプロイでの上書きは要らない(ADR-0013)
     const appDomain = this.node.tryGetContext("appDomain") as
       | string
       | undefined;

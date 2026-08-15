@@ -3,10 +3,16 @@ import { Construct } from "constructs";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import { AppStack } from "./app-stack";
 
 export interface EdgeStackProps extends cdk.StackProps {
   appStack: AppStack;
+  // 代替ドメイン名と証明書は必ず対で必要な為、1つのプロパティにまとめる
+  customDomain?: {
+    domainName: string;
+    certificate: acm.ICertificate;
+  };
 }
 
 /**
@@ -23,7 +29,7 @@ export class EdgeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
 
-    const { appStack } = props;
+    const { appStack, customDomain } = props;
 
     // SPA静的ファイル配信用バケット。CloudFront OAC経由でのみ読み取れる
     this.spaBucket = new s3.Bucket(this, "SpaBucket", {
@@ -105,6 +111,8 @@ function handler(event) {
         },
         "/api/*": { ...apiBehavior, origin: apiOrigin },
       },
+      domainNames: customDomain ? [customDomain.domainName] : undefined,
+      certificate: customDomain?.certificate,
       defaultRootObject: "index.html",
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       // 固定費ゼロの方針(ADR-0001)に沿ってエッジロケーションを絞る。日本を含む
