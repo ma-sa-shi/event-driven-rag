@@ -11,9 +11,11 @@ from collections.abc import AsyncGenerator
 from itertools import zip_longest
 from typing import Any, NamedTuple
 
+from aws_lambda_powertools.metrics import MetricUnit, single_metric
 from langchain_core.documents import Document
 
 from app.logger import logger
+from app.metrics import ANSWERS_GRADED, CHAT_RETRIES, metrics
 from app.rag.runtime import RagRuntime
 from app.repositories.chats import ChatRepository, RetrievedDocument
 
@@ -112,6 +114,27 @@ def persist(
         )
 
 
+def record_metrics(state: dict[str, Any]) -> None:
+    """完走したチャット1件分のメトリクスを発行する。
+
+    grade別の件数を数えるにはディメンションへ値を持たせる必要があるが、既定のEMFへ足すと
+    同じEMFに載るChatRetriesにもgradeが付き、メトリクスシリーズが3倍になる。
+    その為AnswersGradedだけ独立したEMFとして出す。
+    """
+    grades = state.get("grade") or []
+    if grades:
+        with single_metric(
+            name=ANSWERS_GRADED, unit=MetricUnit.Count, value=1
+        ) as metric:
+            metric.add_dimension(name="grade", value=grades[-1])
+
+    metrics.add_metric(
+        name=CHAT_RETRIES, unit=MetricUnit.Count, value=state.get("retry_count", 0)
+    )
+    # chat-fnはLambdaハンドラーを持たない為、log_metricsの代わりに自分でフラッシュする
+    metrics.flush_metrics()
+
+
 async def generate_sse(
     *,
     runtime: RagRuntime,
@@ -121,7 +144,11 @@ async def generate_sse(
     chat_id: str,
     request_id: str,
 ) -> AsyncGenerator[str, None]:
-    """ノードごとのstate更新をSSEで配信し、完了後にdoneイベントを返す。"""
+    """ノードごとのstate更新をSSEで配信し、完了後にdoneイベントを返す。
+
+    メトリクスはグラフが完走したときだけ発行する。失敗時とクライアント切断時に出さないのは、
+    永続化と同じ基準(部分的なチャットは記録しない)に揃える為である。
+    """
     logger.info("chat stream started", chat_id=chat_id, question=question[:50])
 
     final_state: dict[str, Any] = {}
@@ -165,6 +192,8 @@ async def generate_sse(
             {"message": "チャットの生成に失敗しました。", "requestId": request_id},
         )
         return
+
+    record_metrics(final_state)
 
     grades = final_state.get("grade") or []
     logger.info("chat stream finished", chat_id=chat_id)

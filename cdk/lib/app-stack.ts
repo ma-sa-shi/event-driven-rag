@@ -25,6 +25,9 @@ export const API_INTEGRATION_TIMEOUT = cdk.Duration.seconds(29);
 // SSEはストリーム全体が統合タイムアウトに収まる必要があるため、chat-fnのLambdaタイムアウトに合わせる
 export const CHAT_INTEGRATION_TIMEOUT = cdk.Duration.seconds(300);
 
+// CloudWatchのカスタムメトリクスの名前空間。発行するメトリクスはarchitecture.md 10.1を参照
+export const METRICS_NAMESPACE = "EventDrivenRag";
+
 export interface AppStackProps extends cdk.StackProps {
   dataStack: DataStack;
 }
@@ -115,6 +118,8 @@ export class AppStack extends cdk.Stack {
       code: webImage,
       memorySize: 512,
       timeout: cdk.Duration.seconds(30),
+      // X-Rayのセグメントを記録する。トレースは従量課金であり固定費は増えない(ADR-0001)
+      tracing: lambda.Tracing.ACTIVE,
       environment: {
         TABLE_NAME: dataStack.table.tableName,
         DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
@@ -123,6 +128,7 @@ export class AppStack extends cdk.Stack {
         COGNITO_CLIENT_ID: dataStack.userPoolClient.userPoolClientId,
         POWERTOOLS_SERVICE_NAME: "api",
         POWERTOOLS_LOG_LEVEL: "INFO",
+        POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
       },
     });
 
@@ -137,6 +143,8 @@ export class AppStack extends cdk.Stack {
       code: chatImage,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(300),
+      // Lambda自身のセグメントは記録する。アプリ内の計装のみ環境変数で止める(ADR-0014)
+      tracing: lambda.Tracing.ACTIVE,
       environment: {
         TABLE_NAME: dataStack.table.tableName,
         VECTOR_BUCKET_ARN: dataStack.vectorBucket.attrVectorBucketArn,
@@ -149,6 +157,11 @@ export class AppStack extends cdk.Stack {
         AWS_LWA_INVOKE_MODE: "response_stream",
         POWERTOOLS_SERVICE_NAME: "chat",
         POWERTOOLS_LOG_LEVEL: "INFO",
+        POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
+        // RAGパイプラインはベクトル検索を並行実行し、X-Ray SDKのスレッドローカルな
+        // コンテキストが壊れる。サブセグメントが失われるだけでなく、LLM呼び出しへ
+        // 例外が漏れて再試行を招く為、アプリ内の計装は行わない(ADR-0014)
+        POWERTOOLS_TRACE_DISABLED: "true",
       },
     });
 
@@ -176,6 +189,7 @@ export class AppStack extends cdk.Stack {
         memorySize: 1024,
         // SQSの可視性タイムアウト900秒以内に収める
         timeout: cdk.Duration.seconds(600),
+        tracing: lambda.Tracing.ACTIVE,
         environment: {
           TABLE_NAME: dataStack.table.tableName,
           DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
@@ -184,6 +198,7 @@ export class AppStack extends cdk.Stack {
           COHERE_API_KEY_PARAMETER_NAME,
           POWERTOOLS_SERVICE_NAME: "ingest",
           POWERTOOLS_LOG_LEVEL: "INFO",
+          POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
         },
       },
     );
@@ -217,6 +232,8 @@ export class AppStack extends cdk.Stack {
       endpointTypes: [apigateway.EndpointType.REGIONAL],
       deployOptions: {
         stageName: "prod",
+        // Lambdaのセグメントとつなげ、サービスマップをAPI Gatewayから始める
+        tracingEnabled: true,
         // 想定は月400〜600チャットであり、通常利用が当たる水準ではない
         throttlingRateLimit: 20,
         throttlingBurstLimit: 40,

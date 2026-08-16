@@ -1,5 +1,7 @@
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import Any, NamedTuple
 
 import boto3
 import jwt
@@ -9,6 +11,7 @@ from jwt import PyJWKClient
 from moto import mock_aws
 
 from app.ingest.pipeline import get_ingest_pipeline
+from app.metrics import metrics
 from app.rag.runtime import get_rag_runtime
 from app.settings import get_settings
 from app.ssm import get_parameter
@@ -23,6 +26,41 @@ VECTOR_INDEX_ARN = (
 )
 OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/test-openai-api-key"
 COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/test-cohere-api-key"
+METRICS_NAMESPACE = "test-namespace"
+
+
+class EmittedMetric(NamedTuple):
+    name: str
+    value: Any
+    dimensions: dict[str, str]
+
+
+def emitted_metrics(captured_stdout: str) -> list[EmittedMetric]:
+    """capsysで拾った標準出力から、発行されたメトリクスを取り出す。
+
+    PowertoolsのMetricsは標準出力へEMF形式のJSONを1行で書き出す。
+    構造化ログも同じ標準出力へJSONで出る為、EMFの目印である`_aws`キーで選り分ける。
+    """
+    emitted: list[EmittedMetric] = []
+    for line in captured_stdout.splitlines():
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or "_aws" not in payload:
+            continue
+        for definition in payload["_aws"]["CloudWatchMetrics"]:
+            # Dimensionsはディメンション名の配列の配列。値は同じEMFの直下にある
+            names = definition["Dimensions"][0] if definition["Dimensions"] else []
+            emitted.extend(
+                EmittedMetric(
+                    name=metric["Name"],
+                    value=payload[metric["Name"]],
+                    dimensions={name: payload[name] for name in names},
+                )
+                for metric in definition["Metrics"]
+            )
+    return emitted
 
 
 # autouse=Trueにより、テスト関数に引数(env)を書かなくても、test/の全テスト実行前に自動で呼ばれる
@@ -38,6 +76,10 @@ def env(monkeypatch):
     monkeypatch.setenv("VECTOR_INDEX_ARN", VECTOR_INDEX_ARN)
     monkeypatch.setenv("OPENAI_API_KEY_PARAMETER_NAME", OPENAI_API_KEY_PARAMETER_NAME)
     monkeypatch.setenv("COHERE_API_KEY_PARAMETER_NAME", COHERE_API_KEY_PARAMETER_NAME)
+    # 共有インスタンスは名前空間をimport時に解決し終えている為、環境変数だけでは届かない。
+    # 環境変数の方は、呼び出しごとにproviderを作るsingle_metricが読む
+    monkeypatch.setenv("POWERTOOLS_METRICS_NAMESPACE", METRICS_NAMESPACE)
+    monkeypatch.setattr(metrics.provider, "namespace", METRICS_NAMESPACE)
     # motoが本物のAWS鍵を使って実AWSリソースにリクエストしないようダミーを設定
     monkeypatch.setenv("AWS_DEFAULT_REGION", "ap-northeast-1")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
@@ -49,6 +91,8 @@ def env(monkeypatch):
 
 def _clear_caches() -> None:
     """プロセス内キャッシュがテスト間で漏れないようまとめてクリアする。"""
+    # Metricsは単一インスタンスで、未フラッシュのメトリクスを保持し続ける
+    metrics.clear_metrics()
     get_settings.cache_clear()
     get_parameter.cache_clear()
     get_rag_runtime.cache_clear()

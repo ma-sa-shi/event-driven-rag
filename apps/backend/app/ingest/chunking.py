@@ -3,6 +3,8 @@
 langchain-text-splittersはlangchain-coreを引き込みworkerイメージを重くする為、自前実装する(ADR-0003)。
 """
 
+from app.tracer import tracer
+
 # 1チャンクの最大文字数と文脈を維持するために隣接チャンク間で重複させる文字数
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
@@ -10,6 +12,8 @@ CHUNK_OVERLAP = 50
 SEPARATORS = ("\n\n", "\n", " ", "")
 
 
+# チャンク全文はセグメントの上限(64KB)を超え得る為、戻り値は記録しない
+@tracer.capture_method(capture_response=False)
 def split_text(
     text: str,
     *,
