@@ -3,6 +3,7 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import {
   AppStack,
   COHERE_API_KEY_PARAMETER_NAME,
+  METRICS_NAMESPACE,
   OPENAI_API_KEY_PARAMETER_NAME,
 } from '../lib/app-stack';
 import { DataStack } from '../lib/data-stack';
@@ -107,6 +108,29 @@ describe('Lambda', () => {
     expect(env).not.toHaveProperty('OPENAI_API_KEY_PARAMETER_NAME');
     expect(env).toHaveProperty('DOCUMENTS_BUCKET_NAME');
     expect(env).toHaveProperty('VECTOR_INDEX_ARN');
+  });
+
+  test('3関数ともアクティブトレースとメトリクスの名前空間を持つ', () => {
+    for (const serviceName of ['api', 'chat', 'ingest']) {
+      const [, fn] = findFunctionByServiceName(serviceName);
+      expect(fn.Properties.TracingConfig).toEqual({ Mode: 'Active' });
+      expect(fn.Properties.Environment.Variables.POWERTOOLS_METRICS_NAMESPACE).toBe(
+        METRICS_NAMESPACE,
+      );
+    }
+  });
+
+  // 並行実行でX-Ray SDKのコンテキストが壊れる為、chat-fnだけアプリ内の計装を止める(ADR-0014)
+  test('chat-fnのみアプリ内トレースを無効化する', () => {
+    const [, chatFn] = findFunctionByServiceName('chat');
+    expect(chatFn.Properties.Environment.Variables.POWERTOOLS_TRACE_DISABLED).toBe('true');
+
+    for (const serviceName of ['api', 'ingest']) {
+      const [, fn] = findFunctionByServiceName(serviceName);
+      expect(fn.Properties.Environment.Variables).not.toHaveProperty(
+        'POWERTOOLS_TRACE_DISABLED',
+      );
+    }
   });
 
   test('3つのLambdaはそれぞれ別ターゲットのイメージを使う', () => {
@@ -240,6 +264,12 @@ describe('API Gateway', () => {
         expect(props.AuthorizationScopes).toEqual(['openid']);
       }
     }
+  });
+
+  test('ステージでX-Rayのトレースが有効になる', () => {
+    template.hasResourceProperties('AWS::ApiGateway::Stage', {
+      TracingEnabled: true,
+    });
   });
 
   test('ステージにスロットリングの上限が設定される', () => {

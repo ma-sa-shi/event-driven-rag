@@ -129,6 +129,7 @@ exports[`スナップショット 1`] = `
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefIngestQueue2280FF4EF5DFF735",
             },
             "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_METRICS_NAMESPACE": "EventDrivenRag",
             "POWERTOOLS_SERVICE_NAME": "api",
             "TABLE_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
@@ -144,6 +145,9 @@ exports[`スナップショット 1`] = `
           ],
         },
         "Timeout": 30,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -182,6 +186,14 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "PolicyDocument": {
           "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
             {
               "Action": [
                 "dynamodb:BatchGetItem",
@@ -313,7 +325,9 @@ exports[`スナップショット 1`] = `
             "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
             "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
             "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_METRICS_NAMESPACE": "EventDrivenRag",
             "POWERTOOLS_SERVICE_NAME": "chat",
+            "POWERTOOLS_TRACE_DISABLED": "true",
             "TABLE_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
             },
@@ -334,6 +348,9 @@ exports[`スナップショット 1`] = `
           ],
         },
         "Timeout": 300,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -372,6 +389,14 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "PolicyDocument": {
           "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
             {
               "Action": [
                 "dynamodb:BatchGetItem",
@@ -541,6 +566,7 @@ exports[`スナップショット 1`] = `
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
             },
             "POWERTOOLS_LOG_LEVEL": "INFO",
+            "POWERTOOLS_METRICS_NAMESPACE": "EventDrivenRag",
             "POWERTOOLS_SERVICE_NAME": "ingest",
             "TABLE_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
@@ -562,6 +588,9 @@ exports[`スナップショット 1`] = `
           ],
         },
         "Timeout": 600,
+        "TracingConfig": {
+          "Mode": "Active",
+        },
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -600,6 +629,14 @@ exports[`スナップショット 1`] = `
       "Properties": {
         "PolicyDocument": {
           "Statement": [
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
             {
               "Action": [
                 "sqs:ReceiveMessage",
@@ -909,6 +946,7 @@ exports[`スナップショット 1`] = `
           "Ref": "RestApi0C43BF4B",
         },
         "StageName": "prod",
+        "TracingEnabled": true,
       },
       "Type": "AWS::ApiGateway::Stage",
     },
