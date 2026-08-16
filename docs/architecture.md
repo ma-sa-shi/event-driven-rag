@@ -558,7 +558,35 @@ OpenAIとCohereのAPIキーは、SSM Parameter StoreのSecureStringパラメー�
 - Metrics
 - Tracing
 
-Request IDを全サービスで引き継ぎ、1リクエストの処理をサービス横断で追跡できるようにする。
+Request IDを全サービスで引き継ぎ、1リクエストの処理をサービス横断で追跡できるようにする。api-fnが採番したRequest IDは取込メッセージにも載せ、ingest-fnのログへ引き継ぐ。
+
+#### メトリクス
+
+MetricsはEMF形式のJSONを標準出力へ書き出し、CloudWatch Logsがこれを取り込んでカスタムメトリクスとして記録する。名前空間は`EventDrivenRag`とし、発行するのは次の5種である。
+
+| メトリクス | 発行元 | 内容 |
+| --- | --- | --- |
+| DocumentsIngested | ingest-fn | 取込に成功したドキュメント数 |
+| DocumentIngestFailures | ingest-fn | 取込に失敗したドキュメント数 |
+| IngestedChunks | ingest-fn | S3 Vectorsへ登録したチャンク数 |
+| AnswersGraded | chat-fn | 自己評価の結果別の回答数 |
+| ChatRetries | chat-fn | 再試行の発生回数 |
+
+カスタムメトリクスの課金と無料枠の単位は、メトリクス名とディメンションの組み合わせである。この単位で数えると、AnswersGradedは評価結果の3値をディメンションに持つため3つになる。残りは各1つで合計7つとなり、無料枠の10に収まる。なお、api-fnからビジネスメトリクスは発行しない。
+
+chat-fnはLambda Handlerを持たないため、SSEを配信し終えた時点でアプリ側から明示的にフラッシュする。ただし、処理が途中で失敗した場合とクライアントが切断した場合は発行せず、完走したチャットだけを数える。これはDynamoDBへの永続化と基準を揃えたものである。
+
+#### トレース
+
+3つのLambdaとAPI Gatewayのステージでアクティブトレースを有効にし、X-Rayでリクエストの経路とレイテンシを追跡する。アプリ内の計装はapi-fnとingest-fnで行い、DynamoDB・S3・SQS・S3 Vectorsへのboto3呼び出しとCohereへのHTTP呼び出しに加えて、リクエスト全体と取込処理の各段をサブセグメントとして記録する。さらにサブセグメントへはRequest IDをアノテーションとして付け、ログとトレースを相互に辿れるようにする。
+
+ingest-fnは通常のLambda Handlerであり、X-Rayのコンテキストはランタイムから受け取る。一方、api-fnとchat-fnが利用するLambda Web Adapterは、X-Rayのトレースヘッダーをアプリへ転送しない。しかもランタイムが呼び出しごとに更新する環境変数は、アプリのプロセスからは参照できない。そのため、Lambda Web Adapterが転送するLambda contextに含まれるトレースIDからコンテキストを復元する。
+
+ただし、chat-fnではアプリ内の計装を行わない。RAGパイプラインがベクトル検索を並行実行するため、X-Ray SDKのスレッドローカルなコンテキストが壊れるからである。判断の経緯は[ADR-0014](./adr/0014-xray-app-instrumentation-scope.md)に記載する。それでもLambda自身のセグメントは記録されるため、サービスマップと関数単位のレイテンシは得られる。またノードごとの所要時間は、構造化ログで追跡する。
+
+#### アラーム
+
+ingest-fnがリトライ上限を超えると、メッセージはDLQへ退避する。しかし、退避したこと自体は誰も気付けない。そこでDLQのメッセージ数が1以上になるとCloudWatchアラームが発報し、SNSトピック経由でメールへ通知する。なお、通知先アドレスの購読確認は手動で行う。アラームも無料枠が10であり、監視対象はこの1本に絞る。
 
 ### 10.2 CI/CD
 
@@ -622,8 +650,13 @@ ADR-0001で置いた前提である月400件から600件のチャットを想定
 | CloudFront | Free Tier |
 | Cognito | Free Tier |
 | SQS | Free Tier |
+| CloudWatch | Free Tier |
+| X-Ray | Free Tier |
+| SNS | Free Tier |
 
 合計は約$1〜2/月となる。
+
+モニタリングは無料枠に収まる範囲で構成する。カスタムメトリクスは7、アラームは1で、いずれも無料枠の10以内に収める。X-Rayのトレースは月10万件まで無料であり、想定利用量では課金されない。
 
 OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1チャットで最大8回のLLM呼び出しが発生するため、補助チェーンにはnano系モデルを使いコストを抑える。
 
@@ -653,6 +686,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
 - [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
+- [ADR-0014: X-Rayのアプリ内計装をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
 
 認証の詳細設計は次のドキュメントで管理する。
 
