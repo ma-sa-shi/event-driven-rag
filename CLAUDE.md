@@ -21,7 +21,7 @@ make install           # npm install (frontend) + uv sync (backend)
 make dev               # run frontend (:5173) and backend (:8000) dev servers together
 make lint              # eslint + prettier --check (frontend), ruff check + format --check (backend)
 make format            # prettier --write (frontend), ruff --fix + format (backend)
-make test              # backend pytest
+make test              # frontend vitest + backend pytest
 make docker-build      # build the api-fn image (web target)
 make docker-build-chat    # build the chat-fn image (chat target)
 make docker-build-worker  # build the ingest-fn image (worker target)
@@ -36,9 +36,18 @@ Day-to-day development is native (uv/npm). Docker exists only to build the produ
 ```bash
 npm run dev            # dev server on http://localhost:5173
 npm run build          # tsc -b && vite build
+npm test               # vitest run (test:watch for watch mode)
+npx vitest run test/lib/sse.test.ts        # single test file
+npx vitest run -t "コメント行を読み飛ばす"   # single test by name
 npm run lint           # eslint
 npm run format         # prettier --write (format:check for CI-style check)
 ```
+
+Frontend tests live in `apps/frontend/test/`, mirroring the `src/` layout, and
+run in jsdom with React Testing Library. Vitest globals are not injected — each
+test imports `describe` / `it` / `expect` / `vi` from `vitest`. The network
+boundary is faked with `vi.mock` and `fetch` stubs, not MSW. `tsconfig.test.json`
+is in `tsconfig.json`'s references, so `npm run build` type-checks the tests too.
 
 ### Backend (`apps/backend/`)
 
@@ -78,7 +87,7 @@ Target architecture (from `docs/architecture.md`; most of it is not yet implemen
 - **Data**: DynamoDB single-table design (e.g. `PK=USER#123`, `SK=CHAT#<ULID>`) for documents, chats, and messages. IDs are ULIDs; GSI1 (`GSI1PK=DOC|CHAT`, `GSI1SK=<id>`) serves both cross-user lists and ID-only lookups. S3 Vectors metadata: `documentId` (filterable), `text`/`filename` (non-filterable).
 - **Zero fixed cost is a hard constraint**: no VPC, no NAT, no ECS/EC2/Aurora, no Provisioned Concurrency.
 - **CDK is five stacks**: CertificateStack, DataStack, AppStack, EdgeStack, CiStack (see `cdk/README.md` for deploy prerequisites like the manual SSM SecureString setup and the ACM DNS validation done at the registrar). The SPA bucket lives in EdgeStack, not DataStack, because its OAC policy references the distribution. CertificateStack holds only the ACM certificate for the public domain and lives in us-east-1, the only region CloudFront can use; `appDomain` (default in `cdk.json`) carries the domain to DataStack without a stack reference. CiStack holds only the GitHub Actions OIDC provider and deploy role.
-- **CI/CD**: `.github/workflows/ci.yml` validates PRs (frontend lint/format/build, backend ruff/pytest, cdk typecheck/jest); `deploy-frontend.yml` and `deploy-backend.yml` deploy on merge to `main`. Workflows never run `cdk deploy` — infrastructure changes are applied manually. CDK snapshot tests normalize asset hashes via `cdk/test/helpers.ts`, so backend-only edits no longer break `npm test`.
+- **CI/CD**: `.github/workflows/ci.yml` validates PRs (frontend lint/format/vitest/build, backend ruff/pytest, cdk typecheck/jest); `deploy-frontend.yml` and `deploy-backend.yml` deploy on merge to `main`. Workflows never run `cdk deploy` — infrastructure changes are applied manually. CDK snapshot tests normalize asset hashes via `cdk/test/helpers.ts`, so backend-only edits no longer break `npm test`.
 - **Logging**: Lambda Powertools (structured logging, metrics, tracing); propagate the request ID across services.
 
 ## TypeScript Code Style
