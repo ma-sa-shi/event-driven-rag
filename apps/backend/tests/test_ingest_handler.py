@@ -15,8 +15,14 @@ from app.ingest.extract import UnsupportedFileTypeError
 from app.ingest.pipeline import DocumentNotFoundError, IngestPipeline
 from app.ingest.vectors import VectorIndex
 from app.ingest_handler import handler
+from app.metrics import DOCUMENT_INGEST_FAILURES, DOCUMENTS_INGESTED, INGESTED_CHUNKS
 from app.repositories.documents import DocumentRepository
-from tests.conftest import BUCKET_NAME, TABLE_NAME, VECTOR_INDEX_ARN
+from tests.conftest import (
+    BUCKET_NAME,
+    TABLE_NAME,
+    VECTOR_INDEX_ARN,
+    emitted_metrics,
+)
 from tests.factories import put_document
 from tests.ingest.test_vectors import StubS3VectorsClient
 
@@ -260,6 +266,46 @@ def test_marks_failed_when_embedding_api_fails(
         handler(build_event(), lambda_context)
 
     assert get_document(aws)["status"] == "failed"
+
+
+def test_emits_ingest_metrics_on_success(aws, pipeline, lambda_context, capsys):
+    put_document(
+        aws.table,
+        user_id=USER_ID,
+        document_id=DOCUMENT_ID,
+        filename=FILENAME,
+        status="processing",
+    )
+    upload(aws, ("段落。" * 400).encode())
+
+    handler(build_event(), lambda_context)
+
+    # EMFの値はデータポイントの配列で出る
+    metrics = {
+        metric.name: metric.value for metric in emitted_metrics(capsys.readouterr().out)
+    }
+    assert metrics.pop(DOCUMENTS_INGESTED) == [1]
+    assert metrics.pop(INGESTED_CHUNKS) == [int(get_document(aws)["chunkCount"])]
+    assert metrics == {}
+
+
+def test_emits_failure_metric_when_ingest_fails(aws, pipeline, lambda_context, capsys):
+    put_document(
+        aws.table,
+        user_id=USER_ID,
+        document_id=DOCUMENT_ID,
+        filename=FILENAME,
+        status="processing",
+    )
+
+    with pytest.raises(ClientError):
+        handler(build_event(), lambda_context)
+
+    # 例外を再送出してもlog_metricsがフラッシュする
+    metrics = {
+        metric.name: metric.value for metric in emitted_metrics(capsys.readouterr().out)
+    }
+    assert metrics == {DOCUMENT_INGEST_FAILURES: [1]}
 
 
 def test_unknown_document_raises_without_creating_item(aws, pipeline, lambda_context):

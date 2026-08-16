@@ -153,6 +153,47 @@ describe('SQS', () => {
   });
 });
 
+describe('監視', () => {
+  test('DLQへ1件でも積まれたらアラームが発報する', () => {
+    template.resourceCountIs('AWS::CloudWatch::Alarm', 1);
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      Namespace: 'AWS/SQS',
+      MetricName: 'ApproximateNumberOfMessagesVisible',
+      Statistic: 'Maximum',
+      Period: 300,
+      Threshold: 1,
+      EvaluationPeriods: 1,
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+      // 取込が無い期間のデータ欠損でALARMにしない
+      TreatMissingData: 'notBreaching',
+      AlarmActions: [{ Ref: Match.stringLikeRegexp('AlarmTopic') }],
+      Dimensions: [
+        {
+          Name: 'QueueName',
+          Value: {
+            'Fn::GetAtt': [Match.stringLikeRegexp('IngestDeadLetterQueue'), 'QueueName'],
+          },
+        },
+      ],
+    });
+  });
+
+  test('通知先はalarmEmail未指定ならサブスクリプションを作らない', () => {
+    template.resourceCountIs('AWS::SNS::Topic', 1);
+    template.resourceCountIs('AWS::SNS::Subscription', 0);
+  });
+
+  test('alarmEmail指定時はメールのサブスクリプションを作る', () => {
+    const app = new cdk.App({ context: { alarmEmail: 'ops@example.com' } });
+    const withEmail = Template.fromStack(new DataStack(app, 'TestDataStackWithEmail'));
+
+    withEmail.hasResourceProperties('AWS::SNS::Subscription', {
+      Protocol: 'email',
+      Endpoint: 'ops@example.com',
+    });
+  });
+});
+
 describe('Cognito', () => {
   test('セルフサインアップ無効・email/name必須のUser Poolが作成される', () => {
     template.hasResourceProperties('AWS::Cognito::UserPool', {

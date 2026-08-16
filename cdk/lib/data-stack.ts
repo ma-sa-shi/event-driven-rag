@@ -1,9 +1,13 @@
 import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3vectors from "aws-cdk-lib/aws-s3vectors";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 
 // Vite devサーバー。デプロイ済みCognitoを使ってローカルで認証フローを動かす為に常に許可する
@@ -21,6 +25,7 @@ export class DataStack extends cdk.Stack {
   public readonly vectorIndex: s3vectors.CfnIndex;
   public readonly ingestQueue: sqs.Queue;
   public readonly ingestDeadLetterQueue: sqs.Queue;
+  public readonly alarmTopic: sns.Topic;
   public readonly userPool: cognito.UserPool;
   public readonly userPoolClient: cognito.UserPoolClient;
   public readonly userPoolDomain: cognito.UserPoolDomain;
@@ -105,6 +110,38 @@ export class DataStack extends cdk.Stack {
       },
     });
 
+    // 通知先メールは公開リポジトリへ残さない為、cdk.jsonではなくデプロイ時のコンテキストで受け取る。
+    // 未指定ならトピックとアラームだけ作る(購読はマネジメントコンソールからでも追加できる)
+    const alarmEmail = this.node.tryGetContext("alarmEmail") as
+      | string
+      | undefined;
+
+    this.alarmTopic = new sns.Topic(this, "AlarmTopic");
+    if (alarmEmail) {
+      // 購読確認メールの承認は手動(cdk/README.md)
+      this.alarmTopic.addSubscription(
+        new snsSubscriptions.EmailSubscription(alarmEmail),
+      );
+    }
+
+    // DLQへ退避したメッセージは誰も見に行かない為、1件でも積まれたら通知する。
+    // CloudWatchアラームの無料枠は10個であり、監視対象はこの1本に絞る
+    this.ingestDeadLetterQueue
+      .metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Stats.MAXIMUM,
+      })
+      .createAlarm(this, "IngestDeadLetterQueueAlarm", {
+        threshold: 1,
+        evaluationPeriods: 1,
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        // 取込が無い期間はメトリクスが送られない。データ欠損をALARMにしない
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: "ドキュメント取込がリトライ上限を超えてDLQへ退避した",
+      })
+      .addAlarmAction(new cloudwatchActions.SnsAction(this.alarmTopic));
+
     // Cognito ユーザープール設定
     // 運用形態: 管理者によるユーザー作成および招待メール送信の運用（セルフサインアップは無効化）
     // 詳細仕様は docs/authorization.md, ADR-0004を参照
@@ -162,6 +199,7 @@ export class DataStack extends cdk.Stack {
     new cdk.CfnOutput(this, "IngestQueueUrl", {
       value: this.ingestQueue.queueUrl,
     });
+    new cdk.CfnOutput(this, "AlarmTopicArn", { value: this.alarmTopic.topicArn });
     new cdk.CfnOutput(this, "UserPoolId", { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {
       value: this.userPoolClient.userPoolClientId,

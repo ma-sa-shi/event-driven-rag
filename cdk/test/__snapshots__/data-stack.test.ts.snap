@@ -3,6 +3,11 @@
 exports[`スナップショット 1`] = `
 {
   "Outputs": {
+    "AlarmTopicArn": {
+      "Value": {
+        "Ref": "AlarmTopicD01E77F9",
+      },
+    },
     "CognitoDomainUrl": {
       "Value": {
         "Fn::Join": [
@@ -79,6 +84,9 @@ exports[`スナップショット 1`] = `
     },
   },
   "Resources": {
+    "AlarmTopicD01E77F9": {
+      "Type": "AWS::SNS::Topic",
+    },
     "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
       "DependsOn": [
         "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
@@ -250,6 +258,36 @@ exports[`スナップショット 1`] = `
       },
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
+    },
+    "IngestDeadLetterQueueAlarm84BB4DCB": {
+      "Properties": {
+        "AlarmActions": [
+          {
+            "Ref": "AlarmTopicD01E77F9",
+          },
+        ],
+        "AlarmDescription": "ドキュメント取込がリトライ上限を超えてDLQへ退避した",
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": {
+              "Fn::GetAtt": [
+                "IngestDeadLetterQueue48D59084",
+                "QueueName",
+              ],
+            },
+          },
+        ],
+        "EvaluationPeriods": 1,
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Namespace": "AWS/SQS",
+        "Period": 300,
+        "Statistic": "Maximum",
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "IngestQueue2280FF4E": {
       "DeletionPolicy": "Delete",
