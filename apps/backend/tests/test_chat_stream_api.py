@@ -11,8 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.metrics import ANSWERS_GRADED, CHAT_RETRIES
 from app.rag.graph import build_graph
 from app.rag.runtime import RagRuntime, get_rag_runtime
+from app.rag.stream import generate_sse
+from app.repositories.chats import ChatRepository
+from tests.conftest import TABLE_NAME, emitted_metrics
 from tests.rag.fakes import (
     FakeReranker,
     FakeRetriever,
@@ -245,6 +249,63 @@ def test_graph_failure_emits_error_event_and_persists_nothing(
     assert error["requestId"]
     # 途中結果は保存しない
     assert aws.table.scan()["Items"] == []
+
+
+def test_emits_grade_and_retry_metrics_on_completion(
+    make_token, aws, override_runtime, capsys
+):
+    """gradeはディメンションで数える為、リトライ件数とは別のEMFで発行する。"""
+    override_runtime(
+        make_runtime(
+            chains=build_fake_chains(
+                queries=[["q1", "q2", "q3"], ["r1", "r2", "r3"]],
+                answers=["不十分な回答", "十分な回答"],
+                grades=[("useless", "情報が不足"), ("useful", "十分")],
+            )
+        )
+    )
+
+    post_stream(make_token)
+
+    metrics = {
+        metric.name: metric for metric in emitted_metrics(capsys.readouterr().out)
+    }
+    assert metrics[ANSWERS_GRADED].dimensions == {"grade": "useful"}
+    assert metrics[ANSWERS_GRADED].value == [1]
+    assert metrics[CHAT_RETRIES].value == [1]
+    assert "grade" not in metrics[CHAT_RETRIES].dimensions
+
+
+def test_emits_no_metrics_when_graph_fails(make_token, aws, override_runtime, capsys):
+    class ExplodingChain:
+        async def ainvoke(self, inputs, config=None):
+            raise RuntimeError("OpenAIが応答しません")
+
+    override_runtime(
+        make_runtime(
+            chains=replace(build_fake_chains(), generate_queries=ExplodingChain())
+        )
+    )
+
+    post_stream(make_token)
+
+    assert emitted_metrics(capsys.readouterr().out) == []
+
+
+async def test_emits_no_metrics_when_client_disconnects(aws, capsys):
+    """SSEを最後まで読まずに切断された場合、完走していない為メトリクスを出さない。"""
+    stream = generate_sse(
+        runtime=make_runtime(),
+        repository=ChatRepository(TABLE_NAME),
+        question="設計方針は?",
+        user_id="user-123",
+        chat_id="01JCHAT000000000000000000",
+        request_id="req-1",
+    )
+    await anext(stream)
+    await stream.aclose()
+
+    assert emitted_metrics(capsys.readouterr().out) == []
 
 
 def test_requires_authentication(aws, override_runtime):

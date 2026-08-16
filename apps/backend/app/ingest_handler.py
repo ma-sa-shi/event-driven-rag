@@ -10,18 +10,29 @@ SQSはbatchSize=1の為、そのメッセージだけが再試行され、maxRec
 import json
 from typing import Any
 
+from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from app.ingest.pipeline import IngestPipeline, get_ingest_pipeline
 from app.ingest_queue import IngestMessage
 from app.logger import logger
+from app.metrics import (
+    DOCUMENT_INGEST_FAILURES,
+    DOCUMENTS_INGESTED,
+    INGESTED_CHUNKS,
+    metrics,
+)
 from app.repositories.documents import DocumentStatusError
+from app.tracer import tracer
 
 FAILED_ALLOWED_FROM = ("processing", "failed", "ingested")
 
 
 # Lambdaのコンテキスト情報(function_nameやaws_request_id等)を全ログへ付与する
 @logger.inject_lambda_context
+@tracer.capture_lambda_handler
+# 取込失敗でもfinallyでフラッシュされる為、失敗のメトリクスも発行される
+@metrics.log_metrics
 def handler(event: dict[str, Any], context: LambdaContext) -> None:
     """SQSイベントのRecordsを取り出し、1件ずつ取込処理へ渡す。
 
@@ -47,8 +58,15 @@ def _process_record(record: dict[str, Any]) -> None:
             user_id=user_id,
             s3_key=message["s3Key"],
         )
+        metrics.add_metric(name=DOCUMENTS_INGESTED, unit=MetricUnit.Count, value=1)
+        metrics.add_metric(
+            name=INGESTED_CHUNKS, unit=MetricUnit.Count, value=chunk_count
+        )
         logger.info("document ingest completed", chunk_count=chunk_count)
     except Exception:
+        metrics.add_metric(
+            name=DOCUMENT_INGEST_FAILURES, unit=MetricUnit.Count, value=1
+        )
         logger.exception("document ingest failed")
         _mark_failed(pipeline, user_id=user_id, document_id=document_id)
         raise

@@ -7,6 +7,8 @@ LangChainを入れない方針(ADR-0003)のため、既定依存のhttpxでREST 
 
 import httpx
 
+from app.tracer import tracer
+
 COHERE_EMBED_URL = "https://api.cohere.com/v2/embed"
 # S3 Vectorsインデックスの次元数(data-stack.tsのdimensionと一致させる)
 EMBEDDING_DIMENSION = 1536
@@ -32,6 +34,8 @@ class CohereEmbedder:
         self._client = client or httpx.Client(timeout=REQUEST_TIMEOUT_SECONDS)
         self._headers = {"Authorization": f"Bearer {api_key}"}
 
+    # ベクトルはセグメントの上限(64KB)を超える為、戻り値は記録しない
+    @tracer.capture_method(capture_response=False)
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), MAX_TEXTS_PER_REQUEST):
