@@ -50,12 +50,26 @@ aws acm describe-certificate --region us-east-1 --certificate-arn <取得したA
 ## デプロイ
 
 ```bash
-npx cdk deploy --all
+npx cdk deploy --all -c alarmEmail=you@example.com
 ```
+
+`alarmEmail`はDLQアラームの通知先で、指定を省略するとSNSのサブスクリプションが作られない。既に購読済みの場合は、省略したデプロイで削除されるため毎回指定する。
 
 各スタックは他のスタックのリソースを参照するため、DataStack → AppStack → EdgeStack → CiStackの順にデプロイされる。EdgeStackはCloudFrontの代替ドメイン名へ証明書を関連付けるため、AppStackに加えてCertificateStackにも依存する。
 
 スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。証明書のようにリージョンを跨ぐ参照も同じ仕組みで解決されるため、受け渡し用のカスタムリソースは作られない。
+
+### DLQアラームの購読確認(初回のみ)
+
+DataStackはingest-fnのDLQに対するCloudWatchアラームと、通知用のSNSトピックを作る。通知先のメールアドレスはリポジトリへ残さないため、コンテキスト`alarmEmail`でデプロイ時に渡す。
+
+デプロイ後、AWSから届く購読確認メールの`Confirm subscription`リンクを開く。承認するまで通知は配信されない。購読状態は次のコマンドで確認できる。
+
+```bash
+aws sns list-subscriptions-by-topic --topic-arn <DataStackのAlarmTopicArn出力>
+```
+
+`SubscriptionArn`が`PendingConfirmation`のままなら、まだ承認されていない。
 
 ### 公開ドメインのDNS設定(初回のみ)
 
