@@ -24,6 +24,7 @@ format:
 	cd apps/backend && uv run ruff check --fix . && uv run ruff format .
 
 test:
+	cd apps/frontend && npm test
 	cd apps/backend && uv run pytest
 
 docker-build: ## Build the api-fn (web target) image
