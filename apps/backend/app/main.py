@@ -1,11 +1,13 @@
 import importlib.util
 import json
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, FastAPI, Request
 
 from app.logger import logger
 from app.routers import chats, documents, users
+from app.tracer import restore_trace_context, traced_request
 
 # 末尾スラッシュの自動リダイレクトを無効化する。
 # 307のLocationはリクエストのHostから組み立てられ、CloudFrontはOriginへのHostとして
@@ -14,35 +16,37 @@ from app.routers import chats, documents, users
 app = FastAPI(redirect_slashes=False)
 
 
-def _lambda_request_id(request: Request) -> str | None:
-    """Lambda Web Adapterが転送するLambda contextからrequest IDを取り出す。"""
+def _lambda_context(request: Request) -> dict[str, Any]:
+    """Lambda Web Adapterが転送するLambda contextを取り出す。
+
+    request IDとX-RayのトレースIDは、どちらもこのヘッダーからしか得られない。
+    """
     header = request.headers.get("x-amzn-lambda-context")
     if not header:
-        return None
+        return {}
     try:
-        return json.loads(header).get("request_id")
-    except (json.JSONDecodeError, AttributeError):
-        return None
+        context = json.loads(header)
+    except json.JSONDecodeError:
+        return {}
+    return context if isinstance(context, dict) else {}
 
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
-    """全リクエストに追跡用のRequest IDを採番し、ログとレスポンスヘッダーに付与する。
+    """全リクエストに追跡用のRequest IDを採番し、ログ・トレース・レスポンスヘッダーへ付与する。
 
     Lambda contextのaws_request_idを引き継ぎ、無い場合はUUIDで代替する。
-
-    Args:
-        request: リクエスト情報(ヘッダー、URL、ボディ等)
-        call_next: 次の処理(ルーター関数)へリクエストを渡す非同期関数
-
-    Returns:
-        X-Request-Idヘッダーを付与したレスポンス
     """
+    context = _lambda_context(request)
     # ローカル実行などLambda contextがない場合はUUIDで代替する
-    request_id = _lambda_request_id(request) or str(uuid.uuid4())
+    request_id = context.get("request_id") or str(uuid.uuid4())
     request.state.request_id = request_id
     logger.append_keys(request_id=request_id)
-    response = await call_next(request)
+    restore_trace_context(context.get("xray_trace_id"))
+
+    with traced_request("## request", request_id):
+        response = await call_next(request)
+
     response.headers["X-Request-Id"] = request_id
     logger.info(
         "request completed",

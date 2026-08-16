@@ -8,6 +8,8 @@ from pathlib import PurePosixPath
 
 from pypdf import PdfReader
 
+from app.tracer import tracer
+
 PDF_EXTENSIONS = {".pdf"}
 TEXT_EXTENSIONS = {".md", ".markdown", ".txt"}
 SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | TEXT_EXTENSIONS
@@ -24,6 +26,8 @@ class EmptyDocumentError(Exception):
     """テキストを1文字も抽出できなかったことを表す(画像だけのPDFなど)。"""
 
 
+# 抽出したテキスト全文はセグメントの上限(64KB)を超え得る為、戻り値は記録しない
+@tracer.capture_method(capture_response=False)
 def extract_text(*, filename: str, body: bytes) -> str:
     """ファイル名の拡張子から形式を判定してテキストを抽出する。
 

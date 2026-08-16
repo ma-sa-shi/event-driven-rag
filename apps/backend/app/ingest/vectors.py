@@ -9,6 +9,8 @@ from typing import Any
 
 import boto3
 
+from app.tracer import tracer
+
 # PutVectors / DeleteVectorsのAPI上限は500件。
 # 1ベクトルは1536次元 + チャンク本文を含み1リクエストが大きくなるため控えめにする
 MAX_VECTORS_PER_REQUEST = 100
@@ -23,6 +25,7 @@ class VectorIndex:
         self._index_arn = index_arn
         self._client = client or boto3.client("s3vectors")
 
+    @tracer.capture_method
     def put_chunks(
         self,
         *,
