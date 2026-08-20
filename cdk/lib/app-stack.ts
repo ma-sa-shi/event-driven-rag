@@ -81,22 +81,25 @@ export class AppStack extends cdk.Stack {
 
     const backendPath = path.join(__dirname, "..", "..", "apps", "backend");
 
+    // イメージのplatformとFunctionのarchitectureは連動しない為、両方をarm64で揃える。
+    // 食い違うとデプロイしたイメージをLambdaが起動できない
+
     // web: Lambda Web Adapter + uvicorn(api-fn)
     const webImage = lambda.DockerImageCode.fromImageAsset(backendPath, {
       target: "web",
-      platform: Platform.LINUX_AMD64,
+      platform: Platform.LINUX_ARM64,
     });
 
     // chat: webにLangGraph / LangChainを追加した構成(chat-fn)。
     // RAG関連ライブラリはイメージサイズが大きくapi-fnのコールドスタートを長くする為、分離する
     const chatImage = lambda.DockerImageCode.fromImageAsset(backendPath, {
       target: "chat",
-      platform: Platform.LINUX_AMD64,
+      platform: Platform.LINUX_ARM64,
     });
     // worker: awslambdaricによる軽量ハンドラ構成(ingest-fn)
     const workerImage = lambda.DockerImageCode.fromImageAsset(backendPath, {
       target: "worker",
-      platform: Platform.LINUX_AMD64,
+      platform: Platform.LINUX_ARM64,
     });
 
     const openaiApiKeyParameter =
@@ -116,6 +119,7 @@ export class AppStack extends cdk.Stack {
     // 認証、一覧、presigned URL発行、取込開始のSQS送信
     this.apiFunction = new lambda.DockerImageFunction(this, "ApiFunction", {
       code: webImage,
+      architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
       timeout: cdk.Duration.seconds(30),
       // X-Rayのセグメントを記録する。トレースは従量課金であり固定費は増えない(ADR-0001)
@@ -141,6 +145,7 @@ export class AppStack extends cdk.Stack {
     // LangGraph Self-RAGによるSSEストリーミングチャット
     this.chatFunction = new lambda.DockerImageFunction(this, "ChatFunction", {
       code: chatImage,
+      architecture: lambda.Architecture.ARM_64,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(300),
       // Lambda自身のセグメントは記録する。アプリ内の計装のみ環境変数で止める(ADR-0014)
@@ -186,6 +191,7 @@ export class AppStack extends cdk.Stack {
       "IngestFunction",
       {
         code: workerImage,
+        architecture: lambda.Architecture.ARM_64,
         memorySize: 1024,
         // SQSの可視性タイムアウト900秒以内に収める
         timeout: cdk.Duration.seconds(600),

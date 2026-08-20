@@ -22,7 +22,9 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # arm64のLambdaイメージをエミュレーションなしでビルドする。
+    # arm64標準ランナーはpublicリポジトリでは無料枠で使える
+    runs-on: ubuntu-24.04-arm
     strategy:
       # 1つのターゲットが失敗しても残りは反映させる
       fail-fast: false
@@ -75,16 +77,16 @@ jobs:
         with:
           context: apps/backend
           target: ${{ matrix.target }}
-          # CDKのPlatform.LINUX_AMD64と揃える
-          platforms: linux/amd64
+          # CDKのPlatform.LINUX_ARM64およびLambdaのArchitecture.ARM_64と揃える
+          platforms: linux/arm64
           push: true
           # 既定のprovenance attestationはOCI image indexを作り、Lambdaが受け付けない
           provenance: false
           tags: |
             ${{ steps.target.outputs.image_uri }}
             ${{ steps.target.outputs.moving_tag_uri }}
-          cache-from: type=gha,scope=backend-${{ matrix.target }}
-          cache-to: type=gha,mode=max,scope=backend-${{ matrix.target }},ignore-error=true
+          cache-from: type=gha,scope=backend-${{ matrix.target }}-arm64
+          cache-to: type=gha,mode=max,scope=backend-${{ matrix.target }}-arm64,ignore-error=true
 
       # 可変タグではなくSHAタグで更新し、どのコミットが動いているかを追えるようにする
       - name: Update Lambda
