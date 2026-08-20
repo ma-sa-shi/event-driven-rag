@@ -196,6 +196,8 @@ api-fnとchat-fnでは、HTTPサーバーであるFastAPIをそのままLambda�
 | chat | chat-fn | webに`chat`依存グループ(LangGraph / LangChain)を追加 |
 | worker | ingest-fn | Adapterなし。awslambdaric + `ingest`依存グループ(pypdf) |
 
+3つのFunctionはいずれもarm64で実行する。x86_64より実行時間の単価が安く、11章のコスト試算もこの単価を前提としている。CDKのイメージアセットとCIのビルドはどちらもlinux/arm64で作成し、Functionのアーキテクチャと一致させる。
+
 ### 5.2 api-fn
 
 REST APIを担当するFunctionである。次のAPIを提供する。
