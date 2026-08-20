@@ -62,6 +62,13 @@ describe('Lambda', () => {
     }
   });
 
+  test('3関数ともarm64で実行される', () => {
+    const functions = template.findResources('AWS::Lambda::Function');
+    for (const fn of Object.values(functions)) {
+      expect(fn.Properties.Architectures).toEqual(['arm64']);
+    }
+  });
+
   test('api-fnは512MB/30秒でDataStackのリソース名を環境変数に持つ', () => {
     const [, fn] = findFunctionByServiceName('api');
     expect(fn.Properties.MemorySize).toBe(512);
