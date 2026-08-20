@@ -109,6 +109,9 @@ exports[`スナップショット 1`] = `
         "ApiFunctionServiceRole52B9747B",
       ],
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "ImageUri": {
             "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:<ASSET_HASH>",
@@ -308,6 +311,9 @@ exports[`スナップショット 1`] = `
         "ChatFunctionServiceRole544D50A9",
       ],
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "ImageUri": {
             "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:<ASSET_HASH>",
@@ -554,6 +560,9 @@ exports[`スナップショット 1`] = `
         "IngestFunctionServiceRole55EB4427",
       ],
       "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
         "Code": {
           "ImageUri": {
             "Fn::Sub": "\${AWS::AccountId}.dkr.ecr.\${AWS::Region}.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-\${AWS::AccountId}-\${AWS::Region}:<ASSET_HASH>",
