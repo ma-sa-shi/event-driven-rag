@@ -37,7 +37,7 @@
   - [10.2 CI/CD](#102-cicd)
 - [11. コスト](#11-コスト)
   - [11.1 コスト方針](#111-コスト方針)
-  - [11.2 想定コスト](#112-想定コスト)
+  - [11.2 コスト構造](#112-コスト構造)
 - [12. 開発計画](#12-開発計画)
 - [13. 関連ドキュメント](#13-関連ドキュメント)
 
@@ -638,27 +638,29 @@ DockerイメージをビルドしてECRへプッシュし、3つのLambdaを新�
 
 Provisioned Concurrencyも利用しない。応答遅延が問題になった場合のみ、chat-fnへの適用を検討する。
 
-### 11.2 想定コスト
+### 11.2 コスト構造
 
-ADR-0001で置いた前提である月400件から600件のチャットを想定した場合のインフラコストは次のとおり。
+インフラ費用は、利用量に依らないストレージ費約$0.4/月に、チャット1件あたり約$0.0004が積み上がる構造である。後者の内訳は、chat-fnの実行時間とAPI Gateway・api-fnのリクエスト課金である。
 
-| Service | Cost |
-|---------|------:|
-| Lambda | <$1 |
-| API Gateway | <$0.1 |
-| DynamoDB | ~$0.5 |
-| S3 | ~$0.5 |
-| S3 Vectors | ~$0.5 |
-| CloudFront | Free Tier |
-| Cognito | Free Tier |
-| SQS | Free Tier |
-| CloudWatch | Free Tier |
-| X-Ray | Free Tier |
-| SNS | Free Tier |
+サービスごとの課金対象は次のとおり。
 
-合計は約$1〜2/月となる。
+| Service | 課金対象 |
+|---------|---------|
+| Lambda | 実行時間とリクエスト数 |
+| API Gateway | リクエスト数 |
+| DynamoDB | 読み書きと保存量 |
+| S3 | 保存量とリクエスト数 |
+| S3 Vectors | 保存量と検索リクエスト数 |
+| X-Ray | トレース数 |
+| CloudFront | 無料枠 |
+| Cognito | 無料枠 |
+| SQS | 無料枠 |
+| CloudWatch | 無料枠 |
+| SNS | 無料枠 |
 
-モニタリングは無料枠に収まる範囲で構成する。カスタムメトリクスは7、アラームは1で、いずれも無料枠の10以内に収める。X-Rayのトレースは月10万件まで無料であり、想定利用量では課金されない。
+単価と常駐構成との損益分岐点は[コストモデルと損益分岐点](./cost-comparison.md)にまとめている。
+
+モニタリングは無料枠に収まる範囲で構成する。カスタムメトリクスは7、アラームは1で、いずれも無料枠の10以内に収める。X-Rayのトレースは月10万件まで無料であるが、1チャットがAPI Gatewayへ3リクエストを発生させるため、月3万チャット程度でこの枠に達する。
 
 OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1チャットで最大8回のLLM呼び出しが発生するため、補助チェーンにはnano系モデルを使いコストを抑える。
 
@@ -690,6 +692,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
 - [ADR-0014: X-Rayのアプリ内計装をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
 
-認証の詳細設計は次のドキュメントで管理する。
+認証の詳細設計とコストの試算は次のドキュメントで管理する。
 
 - [authorization.md](./authorization.md)
+- [cost-comparison.md](./cost-comparison.md)
