@@ -186,6 +186,9 @@ This applies to all Japanese text, including:
 - Keep established technical terms, product names, proper nouns, and standard abbreviations in their conventional form.
 - Prefer clear, concise wording that a native Japanese technical writer would naturally use.
 - Avoid novel terminology when a standard Japanese expression exists.
+- Make logical relationships between adjacent sentences explicit when needed. Restructuring the sentences is an alternative to adding a connector.
+- When two sentences express cause/effect, contrast, qualification, or conclusion, use an appropriate connector such as 「そのため」, 「しかし」,「ただし」,「一方で」 and 「つまり」 when the relationship is not already clear.
+- Do not open every sentence with a connector, and drop those that add nothing.
 
 ### Self-Review
 
@@ -198,6 +201,7 @@ Check that:
 - English terms are used only where they are standard or appropriate.
 - Terminology is consistent with the repository.
 - The text is clear, concise, and easy to understand.
+- Check for sequences of disconnected short sentences and add a conjunction or merge sentences when the logical relationship between them is not explicit. Three or more consecutive sentences without a connector in one paragraph is the signal to look; connectors opening more than about a third of the sentences is the signal you have overcorrected.
 
 When Japanese is derived from English source material, review the Japanese on its own rather than sentence by sentence against the English source.
 
