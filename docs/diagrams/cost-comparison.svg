@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 480" width="880" height="480" font-family="'Noto Sans JP','Hiragino Sans','Yu Gothic UI','Meiryo',sans-serif" role="img" aria-label="月間ストリーミング時間に対する両構成の月額費用。722時間で交差する">
+<rect width="880" height="480" fill="#fcfcfb"/>
+<text x="82" y="32" font-size="17" font-weight="600" fill="#0b0b0b">月額費用の逆転点</text>
+<text x="82" y="52" font-size="12.5" fill="#52514e">交差は722時間/月。移植元アプリが現行構成で捌ける上限(217時間)の3.3倍にあたる</text>
+<line x1="82" y1="416.0" x2="726" y2="416.0" stroke="#e6e5e1" stroke-width="1"/>
+<text x="72" y="420.0" font-size="11.5" text-anchor="end" fill="#7a7975">$0</text>
+<line x1="82" y1="340.0" x2="726" y2="340.0" stroke="#e6e5e1" stroke-width="1"/>
+<text x="72" y="344.0" font-size="11.5" text-anchor="end" fill="#7a7975">$10</text>
+<line x1="82" y1="264.0" x2="726" y2="264.0" stroke="#e6e5e1" stroke-width="1"/>
+<text x="72" y="268.0" font-size="11.5" text-anchor="end" fill="#7a7975">$20</text>
+<line x1="82" y1="188.0" x2="726" y2="188.0" stroke="#e6e5e1" stroke-width="1"/>
+<text x="72" y="192.0" font-size="11.5" text-anchor="end" fill="#7a7975">$30</text>
+<line x1="82" y1="112.0" x2="726" y2="112.0" stroke="#e6e5e1" stroke-width="1"/>
+<text x="72" y="116.0" font-size="11.5" text-anchor="end" fill="#7a7975">$40</text>
+<text x="82.0" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">0</text>
+<text x="153.6" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">100</text>
+<text x="225.1" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">200</text>
+<text x="296.7" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">300</text>
+<text x="368.2" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">400</text>
+<text x="439.8" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">500</text>
+<text x="511.3" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">600</text>
+<text x="582.9" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">700</text>
+<text x="654.4" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">800</text>
+<text x="726.0" y="436.0" font-size="11.5" text-anchor="middle" fill="#7a7975">900</text>
+<line x1="82" y1="416" x2="726" y2="416" stroke="#7a7975" stroke-width="1"/>
+<text x="726" y="456.0" font-size="12" text-anchor="end" fill="#52514e">月間ストリーミング時間 (時間/月)</text>
+<line x1="237.3" y1="124" x2="237.3" y2="416" stroke="#7a7975" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="245.3" y="370.0" font-size="11.5" fill="#52514e">217時間 — 移植元アプリの</text>
+<text x="245.3" y="385.0" font-size="11.5" fill="#52514e">現行構成が捌ける上限</text>
+<text x="245.3" y="402.0" font-size="11" fill="#7a7975">これより右はベクトル層の移行が前提</text>
+<path d="M 82.0 210.1 L 237.3 210.1 L 237.3 170.8 L 392.6 170.8 L 392.6 154.9 L 547.8 154.9 L 547.8 139.1 L 703.1 139.1 L 703.1 123.2 L 726.0 123.2" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round"/>
+<line x1="82.0" y1="413.0" x2="726.0" y2="71.5" stroke="#2a78d6" stroke-width="2"/>
+<text x="734" y="127.2" font-size="12" font-weight="600" fill="#0b0b0b">移植元アプリ</text>
+<text x="734" y="75.5" font-size="12" font-weight="600" fill="#0b0b0b">本アプリ</text>
+<circle cx="598.6" cy="139.1" r="7" fill="#fcfcfb"/>
+<circle cx="598.6" cy="139.1" r="5" fill="none" stroke="#0b0b0b" stroke-width="2"/>
+<text x="588.6" y="109.1" font-size="13" font-weight="600" text-anchor="end" fill="#0b0b0b">損益分岐点 722時間/月</text>
+<text x="588.6" y="125.1" font-size="11.5" text-anchor="end" fill="#52514e">両者とも $36.44/月</text>
+<line x1="494" y1="26" x2="512" y2="26" stroke="#2a78d6" stroke-width="2"/>
+<text x="518" y="30" font-size="11.5" fill="#52514e">本アプリ (Lambda)</text>
+<line x1="616" y1="26" x2="634" y2="26" stroke="#eb6834" stroke-width="2"/>
+<text x="640" y="30" font-size="11.5" fill="#52514e">移植元アプリ (ECS)</text>
+</svg>
