@@ -1,28 +1,30 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --text: #475569;
+  --text-h: #0f172a;
+  /* 地(--bg)の上に面(--surface)のカードを重ねる。--subtleはホバーなどの淡い塗り */
+  --bg: #f1f5f9;
+  --surface: #fff;
+  --subtle: #f8fafc;
+  --border: #e2e8f0;
+  --accent: #2563eb;
+  --accent-bg: rgba(37, 99, 235, 0.08);
+  --accent-border: rgba(37, 99, 235, 0.45);
   /* ドキュメントのステータス表示とエラー表示に使う */
-  --status-neutral: #6b7280;
-  --status-info: #2563eb;
+  --status-neutral: #64748b;
+  /* uploadedをアクセントと同じ青にすると状態表示に見えなくなる為、シアンへ寄せる */
+  --status-info: #0e7490;
   --status-progress: #b45309;
   --status-success: #15803d;
   --status-danger: #b91c1c;
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  /* ヘッダーと本文で左右の端を揃える為、内容の最大幅は共通のトークンで持つ */
+  --content-width: 1280px;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --heading: system-ui, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  font: 16px/160% var(--sans);
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -30,43 +32,30 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --status-neutral: #9ca3af;
-    --status-info: #60a5fa;
+    --text: #94a3b8;
+    --text-h: #f1f5f9;
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --subtle: #172033;
+    --border: #334155;
+    --accent: #60a5fa;
+    --accent-bg: rgba(96, 165, 250, 0.14);
+    --accent-border: rgba(96, 165, 250, 0.5);
+    --status-neutral: #94a3b8;
+    --status-info: #22d3ee;
     --status-progress: #fbbf24;
     --status-success: #4ade80;
     --status-danger: #f87171;
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
   text-align: left;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -84,23 +73,11 @@ h2 {
   color: var(--text-h);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
+  font-size: 20px;
+  line-height: 130%;
+  letter-spacing: -0.2px;
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
 }
 p {
   margin: 0;
@@ -117,12 +94,17 @@ p {
   margin-bottom: 16px;
   border-radius: 8px;
   border: 1px solid var(--status-danger);
+  background: var(--surface);
   color: var(--status-danger);
   font-size: 15px;
 }
 
+/* 読み込み中・空・取得失敗はいずれも本来カードが並ぶ場所に出る為、枠線を破線にして区別する */
 .placeholder {
   padding: 32px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   font-size: 15px;
   color: var(--text);
   text-align: center;
@@ -145,6 +127,15 @@ p {
   }
 }
 
+/* 画面が狭いときはテーブルだけを横スクロールさせ、ページ全体は横に伸ばさない */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
 /* 最終回答はチャット画面とチャット詳細で共通の見た目にする */
 .final-answer {
   padding: 16px;
@@ -162,7 +153,6 @@ p {
   margin-bottom: 10px;
 
   h2 {
-    font-size: 20px;
     margin: 0;
   }
 
@@ -175,6 +165,8 @@ p {
 
 .final-answer-body {
   font-size: 15px;
+  /* 1行が長くなりすぎると読みにくい為、行長を抑える */
+  max-width: 78ch;
   color: var(--text-h);
   /* 回答は改行を含む為そのまま表示する */
   white-space: pre-wrap;
@@ -185,19 +177,4 @@ p {
   margin-top: 12px;
   font-size: 14px;
   color: var(--status-progress);
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

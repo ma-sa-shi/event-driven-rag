@@ -1,8 +1,0 @@
-/* .page-title / .alert / .placeholder は画面間で共通の為index.cssにある */
-
-.documents {
-  /* 画面が狭いときはテーブルだけを横スクロールさせ、ページ全体は横に伸ばさない */
-  .table-scroll {
-    overflow-x: auto;
-  }
-}

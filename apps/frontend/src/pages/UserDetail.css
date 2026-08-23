@@ -1,14 +1,8 @@
 .user-detail {
-  /* 画面が狭いときはテーブルだけを横スクロールさせ、ページ全体は横に伸ばさない */
-  .table-scroll {
-    overflow-x: auto;
-  }
-
   .section-title {
     margin: 32px 0 4px;
     padding-bottom: 8px;
     border-bottom: 2px solid var(--border);
-    font-size: 20px;
   }
 }
 
@@ -16,10 +10,11 @@
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 
   h2 {
     margin: 0 0 12px;
-    font-size: 20px;
   }
 
   dl {

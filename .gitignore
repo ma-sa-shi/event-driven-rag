@@ -18,6 +18,7 @@ Thumbs.db
 .env
 .env.*
 !apps/frontend/.env.example
+!apps/backend/.env.example
 
 # Logs
 *.log

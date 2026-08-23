@@ -9,6 +9,8 @@
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .attempt-title {
@@ -114,6 +116,7 @@
 
 .answer-body {
   margin: 6px 0 0;
+  max-width: 78ch;
   padding-left: 12px;
   border-left: 2px solid var(--border);
   font-size: 14px;
@@ -133,7 +136,7 @@
   margin-top: 14px;
   padding: 12px;
   border-radius: 6px;
-  background: var(--social-bg);
+  background: var(--subtle);
   font-size: 14px;
 
   .step-label {
