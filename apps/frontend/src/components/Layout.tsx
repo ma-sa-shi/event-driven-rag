@@ -15,26 +15,30 @@ export function Layout() {
   return (
     <div className="layout">
       <header className="layout-header">
-        <span className="layout-brand">Event Driven RAG</span>
-        <nav className="layout-nav">
-          <NavLink to="/" end>
-            チャット
-          </NavLink>
-          <NavLink to="/documents">ドキュメント</NavLink>
-        </nav>
-        <div className="layout-user">
-          {auth.user && (
-            <Link to={`/user/${auth.user.profile.sub}`}>
-              {auth.user.profile.name}
-            </Link>
-          )}
-          <button type="button" onClick={() => void handleSignOut()}>
-            サインアウト
-          </button>
+        <div className="layout-header-inner">
+          <span className="layout-brand">Event Driven RAG</span>
+          <nav className="layout-nav">
+            <NavLink to="/" end>
+              チャット
+            </NavLink>
+            <NavLink to="/documents">ドキュメント</NavLink>
+          </nav>
+          <div className="layout-user">
+            {auth.user && (
+              <Link to={`/user/${auth.user.profile.sub}`}>
+                {auth.user.profile.name}
+              </Link>
+            )}
+            <button type="button" onClick={() => void handleSignOut()}>
+              サインアウト
+            </button>
+          </div>
         </div>
       </header>
       <main className="layout-main">
-        <Outlet />
+        <div className="layout-main-inner">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

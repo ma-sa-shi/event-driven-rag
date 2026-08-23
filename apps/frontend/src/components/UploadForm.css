@@ -7,7 +7,8 @@
   margin-bottom: 24px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--social-bg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 
   button[type="submit"] {
     font: inherit;
@@ -67,7 +68,7 @@
   padding: 7px 16px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-h);
   white-space: nowrap;
   transition: border-color 0.2s;
