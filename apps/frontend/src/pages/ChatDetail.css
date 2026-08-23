@@ -3,6 +3,8 @@
   margin-bottom: 24px;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .chat-question-head {
@@ -13,7 +15,6 @@
   margin-bottom: 10px;
 
   h2 {
-    font-size: 20px;
     margin: 0;
   }
 
@@ -26,6 +27,7 @@
 
 .chat-question-body {
   font-size: 15px;
+  max-width: 78ch;
   color: var(--text-h);
   white-space: pre-wrap;
   word-break: break-word;
@@ -43,5 +45,4 @@
   margin: 0 0 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--border);
-  font-size: 20px;
 }

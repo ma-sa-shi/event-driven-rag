@@ -13,7 +13,6 @@ import { UploadForm } from "../components/UploadForm";
 import { toErrorMessage } from "../lib/errors";
 import { ACCEPTED_EXTENSIONS, contentTypeFor } from "../lib/fileTypes";
 import { useOpenDocument } from "../lib/useOpenDocument";
-import "./Documents.css";
 
 const DOCUMENTS_QUERY_KEY = ["documents"];
 // 取込はSQS経由の非同期処理の為、完了をポーリングで待つ
@@ -101,7 +100,7 @@ export function Documents() {
   };
 
   return (
-    <div className="documents">
+    <div>
       <h1 className="page-title">ドキュメント管理</h1>
 
       {error && (

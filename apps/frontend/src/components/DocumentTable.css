@@ -15,12 +15,18 @@
     font-weight: 500;
     font-size: 14px;
     color: var(--text);
+    background: var(--subtle);
     border-bottom-width: 2px;
     white-space: nowrap;
   }
 
   tbody tr:hover {
-    background: var(--social-bg);
+    background: var(--subtle);
+  }
+
+  /* カード枠と二重線にしない */
+  tbody tr:last-child td {
+    border-bottom: none;
   }
 
   .filename {
