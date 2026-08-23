@@ -12,8 +12,9 @@ dev: ## Run frontend (:5173) and backend (:8000) dev servers
 dev-frontend:
 	cd apps/frontend && npm run dev
 
+# apps/backend/.envがあれば、ローカル開発用の環境変数として読み込む
 dev-backend:
-	cd apps/backend && uv run uvicorn app.main:app --reload
+	cd apps/backend && uv run $(if $(wildcard apps/backend/.env),--env-file .env) uvicorn app.main:app --reload
 
 lint:
 	cd apps/frontend && npm run lint && npm run format:check
