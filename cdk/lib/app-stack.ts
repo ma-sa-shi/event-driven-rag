@@ -148,7 +148,7 @@ export class AppStack extends cdk.Stack {
       architecture: lambda.Architecture.ARM_64,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(300),
-      // Lambda自身のセグメントは記録する。アプリ内の計装のみ環境変数で止める(ADR-0014)
+      // Lambda自身のセグメントは記録する。アプリ内のトレース処理のみ環境変数で止める(ADR-0014)
       tracing: lambda.Tracing.ACTIVE,
       environment: {
         TABLE_NAME: dataStack.table.tableName,
@@ -165,7 +165,7 @@ export class AppStack extends cdk.Stack {
         POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
         // RAGパイプラインはベクトル検索を並行実行し、X-Ray SDKのスレッドローカルな
         // コンテキストが壊れる。サブセグメントが失われるだけでなく、LLM呼び出しへ
-        // 例外が漏れて再試行を招く為、アプリ内の計装は行わない(ADR-0014)
+        // 例外が漏れて再試行を招く為、アプリ内のトレース処理は行わない(ADR-0014)
         POWERTOOLS_TRACE_DISABLED: "true",
       },
     });

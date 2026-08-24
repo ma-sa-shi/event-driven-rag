@@ -127,7 +127,7 @@ describe('Lambda', () => {
     }
   });
 
-  // 並行実行でX-Ray SDKのコンテキストが壊れる為、chat-fnだけアプリ内の計装を止める(ADR-0014)
+  // 並行実行でX-Ray SDKのコンテキストが壊れる為、chat-fnだけアプリ内のトレース処理を止める(ADR-0014)
   test('chat-fnのみアプリ内トレースを無効化する', () => {
     const [, chatFn] = findFunctionByServiceName('chat');
     expect(chatFn.Properties.Environment.Variables.POWERTOOLS_TRACE_DISABLED).toBe('true');
