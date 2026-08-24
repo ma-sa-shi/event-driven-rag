@@ -7,11 +7,11 @@
 
 保有しているドメイン`business-efficiency.pro`でアプリケーションを公開する。取得先はお名前.comである。
 
-現在はCloudFrontのデフォルトドメイン(`dxxxxxxxxxxxxx.cloudfront.net`)で配信している。この構成には運用上の負担が1つある。CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンにはCloudFrontのドメインが必要だが、DataStackからEdgeStackを参照すると循環参照になる。そのためドメインをコンテキスト`appDomain`で外から渡し、初回はEdgeStackを構築してから払い出されたドメイン名でDataStackを再デプロイしている(architecture.md 9.1)。独自ドメインであればこの値がデプロイ前に確定する。
+現在はCloudFrontのデフォルトドメイン(`dxxxxxxxxxxxxx.cloudfront.net`)で配信している。この構成には運用上の負担が1つある。CognitoのコールバックURLとドキュメント保存用S3バケットのCORS許可オリジンにはCloudFrontのドメインが必要だが、DataStackからEdgeStackを参照すると循環参照になる。そのためドメインをコンテキスト`appDomain`で外から渡し、初回はEdgeStackを構築してから払い出されたドメイン名でDataStackを再デプロイしている。独自ドメインであればこの値がデプロイ前に確定する。
 
-論点は、ドメインをapexで公開するか、サブドメインで公開するかである。apexはCNAMEを設定できず、CloudFrontへ向けるには、Route53のALIASレコード、エニーキャスト静的IPへのAレコード、ALIAS/ANAME相当の機能を持つDNSサービスへのネームサーバー移管のいずれかが要る。お名前.comのDNSレコード設定はALIAS/ANAMEを提供していない。
+論点は、ドメインをapexで公開するか、サブドメインで公開するかである。apexはCNAMEを設定できず、CloudFrontへ向けるには、Route53のALIASレコード、エニーキャスト静的IPへのAレコード、ALIAS/ANAME相当の機能を持つDNSサービスへのネームサーバー移管のいずれかが要る。お名前.comのDNSレコード設定はALIAS/ANAMEを提供しておらず、現状のDNSのままではapexをCloudFrontへ向けられない。
 
-ADR-0001で固定費ゼロを方針としており、architecture.md 11.2のとおりインフラ費用の固定分は約$0.4/月である。apexで公開するために月額の固定費を負うかが判断の分かれ目となる。
+本システムは固定費回避を方針としており、インフラ費用の固定分は約$0.4/月である。apexで公開するために月額の固定費を負うかが判断の分かれ目となる。
 
 ## Decision
 
@@ -24,7 +24,7 @@ SPAの公開ドメインをサブドメイン`rag.business-efficiency.pro`とし
 
 採用理由は次の3点である。
 
-- 固定費が増えない。ACM証明書、CloudFrontの代替ドメイン名、お名前.comのDNSレコード設定はいずれも追加料金がなく、ADR-0001の方針を保てる
+- 固定費が増えない。ACM証明書、CloudFrontの代替ドメイン名、お名前.comのDNSレコード設定はいずれも追加料金がなく、固定費回避の方針を保てる
 - サブドメインは素のCNAMEで解決でき、DNSサービスの独自機能に依存しない
 - `appDomain`がデプロイ前に確定し、CloudFrontを構築してからDataStackを再デプロイする手順が不要になる
 
@@ -43,13 +43,13 @@ SPAの公開ドメインをサブドメイン`rag.business-efficiency.pro`とし
 
 見直し条件
 
-- apexでの公開が要件になった場合。その時点でネームサーバーをCNAMEフラット化に対応したDNSへ移すか、Route53のホストゾーンとALIASレコードを採用する
+- apexでの公開が要件になった場合は、ネームサーバーをCNAMEフラット化に対応したDNSへ移すか、Route53のホストゾーンとALIASレコードを採用する
 
 ## Alternatives
 
 ### apex + Route53のALIASレコード
 
-apexをCloudFrontへ向ける標準的な手段であり、AWS内で完結するためDNSもCDKで管理できる。しかしパブリックホストゾーンに月$0.50の固定費が発生する。ADR-0001が排除している常時課金される固定リソースに該当する。システム全体で月$1〜2の構成に対し、ドメイン1つのためにホストゾーンを持つ利点が、固定費を作る対価に見合わないため不採用とした。
+apexをCloudFrontへ向ける標準的な手段であり、AWS内で完結するためDNSもCDKで管理できる。しかしパブリックホストゾーンに月$0.50の固定費が発生する。利用の有無に関わらず課金される専有リソースであり、固定費回避の方針が排除している対象にあたる。システム全体で月$1〜2の構成に対し、ドメイン1つのためにホストゾーンを持つ利点が、固定費を負う対価に見合わないため不採用とした。
 
 ### apex + CloudFrontのエニーキャスト静的IP
 
