@@ -2,7 +2,7 @@
 
 Tracerはlogger.pyと同様にプロセス内で1つを共有する。
 Lambda外(ローカル開発・pytest)ではPowertoolsがX-Ray SDKごと無効化する為、
-計装は全てダミーのサブセグメントになり、外部への送信も起きない。
+トレース処理は全てダミーのサブセグメントになり、外部への送信も起きない。
 
 patch_allは導入済みのライブラリを全て走査してコールドスタートを伸ばす為、対象を絞る。
 botocoreがDynamoDB / S3 / SQS / S3 Vectors / SSM、httpxがCohereのEmbedding呼び出しを覆う。

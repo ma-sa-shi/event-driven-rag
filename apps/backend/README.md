@@ -1,28 +1,30 @@
 # backend
 
-FastAPI application shared by the three Lambdas (`api-fn` / `chat-fn` / `ingest-fn`).
-All routes are served under `/api` to match the CloudFront `/api/*` routing.
+3つのLambda(api-fn / chat-fn / ingest-fn)が共有するFastAPIのコードベース。CloudFrontの`/api/*`ルーティングに合わせ、ルートはすべて`/api`配下に置く。
 
-## Setup
+## セットアップ
 
 ```bash
 uv sync
 ```
 
-## Run dev server
+## 開発サーバー
 
 ```bash
 uv run uvicorn app.main:app --reload
 ```
 
-Listens on http://localhost:8000. The frontend dev server proxies `/api` here,
-so requests are same-origin in development (no CORS needed).
+http://localhost:8000 で待ち受ける。フロントエンドの開発サーバーはここへ`/api`をプロキシする。
 
-## Test
+`/api/health`以外のルートはデプロイ済みのAWSリソースを直接参照する。そのため`.env.example`を`.env`へコピーし、DataStackとAppStackの出力値を設定したうえで、AWS認証情報も用意する(`cdk/README.md`)。`make dev`は`.env`があれば読み込む。特に`TABLE_NAME`は必須で、未設定のままリクエストするとエラーになる。
+
+## テスト
 
 ```bash
 uv run pytest
 ```
+
+AWSのAPIはmotoで差し替えるため、認証情報のない環境でも実行できる。
 
 ## Lint / Format
 
@@ -33,13 +35,13 @@ uv run ruff format .
 
 ## Docker
 
-The `Dockerfile` here builds the production image deployed to the three
-Lambdas (Lambda Web Adapter included; per-function CMD/env are set in CDK).
-To verify it builds and starts locally, run from the repo root:
+`Dockerfile`は本番用のイメージをビルドする。共通のビルダーから`web`(api-fn) / `chat`(chat-fn) / `worker`(ingest-fn)の3ターゲットに分かれ、デプロイ時にCDKがターゲットと環境変数を選ぶ(ADR-0003)。
+
+普段の開発はネイティブ(`uv`)で行い、Dockerはイメージの確認にだけ使う。リポジトリルートで次を実行すると、`web`イメージが起動してHTTPを返すところまで確認できる。
 
 ```bash
-docker compose up --build backend
+make docker-up     # :8000で起動する。ネイティブの開発サーバーは先に停止する
+make docker-down
 ```
 
-Serves http://localhost:8000 — stop the native dev server first (same port).
-This is only a startup check; day-to-day development stays native (`uv`).
+一方、`chat`と`worker`はビルドの確認だけを行う(`make docker-build-chat` / `make docker-build-worker`)。

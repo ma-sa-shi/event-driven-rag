@@ -5,7 +5,7 @@
 
 ## Context
 
-OpenAIとCohereのAPIキーをコードやテンプレートに露出させずに保管し、Lambdaから安全に参照する必要がある。AWSのシークレット保管サービスにはSecrets ManagerとSSM Parameter Storeがあり、費用と機能が異なる。課題は、安全性と固定費ゼロ方針の両立である。
+OpenAIとCohereのAPIキーをコードやテンプレートに露出させずに保管し、Lambdaから安全に参照する必要がある。AWSのシークレット保管サービスにはSecrets ManagerとSSM Parameter Storeがあり、費用と機能が異なる。課題は、安全性と固定費回避方針の両立である。
 
 ## Decision
 
@@ -20,7 +20,7 @@ SSM Parameter StoreのSecureStringパラメータでAPIキーを管理する。�
 
 メリット
 
-- 固定費ゼロ方針であるADR-0001を維持できる
+- 固定費回避の方針を維持できる
 - キーの参照権限をLambdaの実行ロールに限定できる
 
 デメリット・制約

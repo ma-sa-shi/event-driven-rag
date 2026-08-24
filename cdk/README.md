@@ -1,6 +1,6 @@
 # CDK
 
-AWS CDK (TypeScript) によるインフラ定義。スタック構成はCertificateStack / DataStack / AppStack / EdgeStack / CiStack。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。CertificateStackは公開ドメインのACM証明書だけを持ち、CloudFrontの制約からus-east-1に置く。CiStackはGitHub ActionsがOIDCで引き受けるデプロイ用ロールを持つ。
+AWS CDK(TypeScript)によるインフラ定義。スタック構成はCertificateStack / DataStack / AppStack / EdgeStack / CiStack。認証のCognitoリソース(User Pool / Hosted UIドメイン / SPAクライアント)はDataStackで、SPA配信用S3バケットはOACのバケットポリシーと同居させるためEdgeStackで管理する。CertificateStackは公開ドメインのACM証明書だけを持ち、CloudFrontの制約からus-east-1に置く。CiStackはGitHub ActionsがOIDCで引き受けるデプロイ用ロールを持つ。
 
 ## コマンド
 
@@ -12,6 +12,14 @@ AWS CDK (TypeScript) によるインフラ定義。スタック構成はCertific
 
 ## デプロイ前準備
 
+### ブートストラップ(初回のみ)
+
+CertificateStack以外の4スタックはap-northeast-1へデプロイする。デプロイ先はCDK CLIのプロファイル(`CDK_DEFAULT_REGION`)で決まるため、初回はこのリージョンをブートストラップする。
+
+```bash
+npx cdk bootstrap aws://<AWSアカウントID>/ap-northeast-1
+```
+
 ### SSM SecureStringパラメータの手動作成(初回のみ)
 
 SecureStringはCloudFormationで作成できないため、AppStackのデプロイ前に手動で作成する(ADR-0008)。
@@ -21,7 +29,7 @@ aws ssm put-parameter --name /event-driven-rag/openai-api-key --type SecureStrin
 aws ssm put-parameter --name /event-driven-rag/cohere-api-key --type SecureString --value '...'
 ```
 
-CDKはこのパラメータを名前参照してLambdaに読み取り権限を付与し、パラメータ名を環境変数(`OPENAI_API_KEY_PARAMETER_NAME` / `COHERE_API_KEY_PARAMETER_NAME`)で渡す。値はLambda起動時にアプリケーションが取得してキャッシュする。キー更新時は`put-parameter --overwrite`のうえLambdaの実行環境を入れ替える(再デプロイ等)必要がある。
+CDKはこのパラメータを名前参照してLambdaに読み取り権限を付与し、パラメータ名を環境変数(`OPENAI_API_KEY_PARAMETER_NAME` / `COHERE_API_KEY_PARAMETER_NAME`)で渡す。値はLambda起動時にアプリケーションが取得してキャッシュする。キーを更新するときは`put-parameter --overwrite`で値を書き換えたうえで、再デプロイなどによりLambdaの実行環境を入れ替える必要がある。
 
 ### Docker
 
@@ -29,14 +37,14 @@ AppStackのLambdaはイメージアセット(`apps/backend/`のDockerfile、`web
 
 ### ACM証明書の発行(初回のみ)
 
-公開ドメインは`rag.business-efficiency.pro`で、CloudFrontへ関連付ける証明書はus-east-1になければならない(ADR-0013)。CertificateStackだけをus-east-1へデプロイするため、このリージョンのブートストラップが必要になる。
+公開ドメインは`rag.business-efficiency.pro`で、CloudFrontへ関連付ける証明書はus-east-1になければならない(ADR-0013)。CertificateStackだけはus-east-1へデプロイするため、このリージョンもブートストラップする。
 
 ```bash
 npx cdk bootstrap aws://<AWSアカウントID>/us-east-1
 npx cdk deploy CertificateStack
 ```
 
-DNSはお名前.comで管理しているため、検証用レコードはCDKの管理外となる。`deploy`は検証待ちのまま進まないので、別のシェルで登録するレコードの値を取得する。
+DNSはお名前.comで管理しているため、検証用レコードはCDKの管理外となる。`deploy`は検証待ちのまま進まないため、別のシェルを開き、登録するレコードの値を取得する。
 
 ```bash
 aws acm list-certificates --region us-east-1 \
@@ -53,27 +61,27 @@ aws acm describe-certificate --region us-east-1 --certificate-arn <取得したA
 npx cdk deploy --all -c alarmEmail=you@example.com
 ```
 
-`alarmEmail`はDLQアラームの通知先で、指定を省略するとSNSのサブスクリプションが作られない。既に購読済みの場合は、省略したデプロイで削除されるため毎回指定する。
+`alarmEmail`はDLQアラームの通知先で、指定を省略するとSNSのサブスクリプションが作られない。サブスクリプションが作成済みの場合、`alarmEmail`を省略したデプロイで削除されるため、毎回指定する。
 
 各スタックは他のスタックのリソースを参照するため、DataStack → AppStack → EdgeStack → CiStackの順にデプロイされる。EdgeStackはCloudFrontの代替ドメイン名へ証明書を関連付けるため、AppStackに加えてCertificateStackにも依存する。
 
 スタック間の参照は`Fn::GetStackOutput`でデプロイ時に解決され、CloudFormationのExportを作らない。参照先のリソースを削除するスタック更新でも、Exportの削除がブロックされることはない。証明書のようにリージョンを跨ぐ参照も同じ仕組みで解決されるため、受け渡し用のカスタムリソースは作られない。
 
-### DLQアラームの購読確認(初回のみ)
+### DLQアラームのサブスクリプション確認(初回のみ)
 
 DataStackはingest-fnのDLQに対するCloudWatchアラームと、通知用のSNSトピックを作る。通知先のメールアドレスはリポジトリへ残さないため、コンテキスト`alarmEmail`でデプロイ時に渡す。
 
-デプロイ後、AWSから届く購読確認メールの`Confirm subscription`リンクを開く。承認するまで通知は配信されない。購読状態は次のコマンドで確認できる。
+デプロイ後、AWSから届くサブスクリプション確認メールの`Confirm subscription`リンクを開く。確認を済ませるまで通知は配信されない。サブスクリプションの状態は次のコマンドで確認できる。
 
 ```bash
 aws sns list-subscriptions-by-topic --topic-arn <DataStackのAlarmTopicArn出力>
 ```
 
-`SubscriptionArn`が`PendingConfirmation`のままなら、まだ承認されていない。
+`SubscriptionArn`が`PendingConfirmation`のままなら、まだ確認が済んでいない。
 
 ### 公開ドメインのDNS設定(初回のみ)
 
-EdgeStackのデプロイ後、`DistributionDomainName`出力を確認し、`rag`のCNAMEとしてお名前.comのDNSレコード設定へ登録する。
+EdgeStackのデプロイ後、`DistributionDomainName`出力を確認し、ホスト名`rag`のCNAMEレコードとしてお名前.comのDNSレコード設定へ登録する。
 
 ```text
 ホスト名: rag
@@ -81,11 +89,11 @@ TYPE:     CNAME
 VALUE:    dxxxxxxxxxxxxx.cloudfront.net
 ```
 
-CognitoのコールバックURLとドキュメント保存用バケットのCORS許可オリジンにも公開ドメインが必要だが、DataStackからEdgeStackを参照するとスタック間が循環する。そのためドメインはコンテキスト`appDomain`で渡している。ドメインは`cdk.json`のcontextへ既定値として置いているため、通常のデプロイで`-c appDomain=...`を指定する必要はない。公開ドメインを変更するときは`cdk.json`を書き換える。
+CognitoのコールバックURLとドキュメント保存用バケットのCORS許可オリジンにも公開ドメインが必要だが、DataStackからEdgeStackを参照すると循環参照になる。そのためドメインはコンテキスト`appDomain`で渡している。ドメインは`cdk.json`のcontextへ既定値として置いているため、通常のデプロイで`-c appDomain=...`を指定する必要はない。公開ドメインを変更するときは`cdk.json`を書き換える。
 
 ### SPAの配信
 
-通常は`main`へのマージで`.github/workflows/deploy-frontend.yml`が実行するため、手動の操作は要らない。手元から反映する場合は、EdgeStackの`SpaBucketName`出力のバケットへビルド成果物を同期し、CloudFrontのキャッシュを無効化する。
+通常は`main`へのマージで`.github/workflows/deploy-frontend.yml`が実行されるため、手動の操作は要らない。手元から反映する場合は、EdgeStackの`SpaBucketName`出力のバケットへビルド成果物を同期し、CloudFrontのキャッシュを無効化する。
 
 ```bash
 (cd ../apps/frontend && npm run build)
@@ -117,7 +125,7 @@ gh api /repos/<owner>/<repo> --jq '{id, owner_id: .owner.id}'
 
 ### バックエンドのイメージ参照先
 
-AppStackのLambdaはイメージアセット(bootstrapのアセットリポジトリ)を参照する一方、CIは常設のECRリポジトリへプッシュして`update-function-code`で差し替える。そのため手動で`cdk deploy AppStack`を実行すると、参照先がアセットリポジトリへ戻る。イメージはローカルのソースからビルドし直されるのでコード自体は正しく、そのまま運用してよい。常設リポジトリへ戻したい場合はバックエンドのワークフローを再実行する。
+AppStackのLambdaはイメージアセット(bootstrapのアセットリポジトリ)を参照する一方、CIは常設のECRリポジトリへプッシュして`update-function-code`で差し替える。そのため手動で`cdk deploy AppStack`を実行すると、参照先がアセットリポジトリへ戻る。イメージはローカルのソースからビルドし直されるため、コード自体は最新であり、そのまま運用してよい。常設リポジトリへ戻したい場合はバックエンドのワークフローを再実行する。
 
 ```bash
 gh workflow run deploy-backend.yml
@@ -127,7 +135,7 @@ gh workflow run deploy-backend.yml
 
 ### Cognitoユーザーの作成
 
-セルフサインアップは無効のため、ユーザーは管理者が作成する(docs/authorization.md)。作成すると初期パスワード付きの招待メールが送信される。
+セルフサインアップを無効にしているため、ユーザーは管理者が作成する(docs/authorization.md)。作成すると初期パスワード付きの招待メールが送信される。
 
 ```bash
 aws cognito-idp admin-create-user \
@@ -144,10 +152,13 @@ aws cognito-idp admin-create-user \
 Hosted UIのコールバックURLに`http://localhost:5173/auth/callback`を登録済みのため、デプロイ済みCognitoを使ってローカルで認証フローを動かせる。DataStackのCfnOutputの値を次の2箇所へ設定する。
 
 - `apps/frontend/.env.local` — `.env.example`をコピーしてCognitoIssuer / UserPoolClientId / CognitoDomainUrlを設定する
-- バックエンド(uvicorn)の環境変数 — JWT検証とDynamoDBアクセスに使う
+- バックエンド(uvicorn)の環境変数 — JWT検証と、デプロイ済みのDynamoDB・S3・SQS・S3 Vectorsへのアクセスに使う
 
 ```bash
 export COGNITO_ISSUER=<CognitoIssuer出力>
 export COGNITO_CLIENT_ID=<UserPoolClientId出力>
 export TABLE_NAME=<TableName出力>
+export DOCUMENTS_BUCKET_NAME=<DocumentsBucketName出力>
+export INGEST_QUEUE_URL=<IngestQueueUrl出力>
+export VECTOR_INDEX_ARN=<VectorIndexArn出力>
 ```

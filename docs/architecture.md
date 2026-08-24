@@ -47,11 +47,11 @@
 
 本システムは、社内ドキュメントを対象としたRAGチャットアプリである。AWSのサーバーレスサービスを中心に構成し、社内ナレッジの共有を目的とする。
 
-RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植し、本構成に合わせて補完する。
+RAGパイプラインは既存実装を移植し、本構成に合わせて補完する。
 
 ### 1.2 設計方針
 
-設計方針を3つの観点に分けて示す。個々の判断の根拠と代替案は[docs/adr/](./adr/)にADRとして記録しており、一覧は[13. 関連ドキュメント](#13-関連ドキュメント)にまとめている。
+設計方針を3つの観点に分けて示す。主要なアーキテクチャ上の判断とその理由、代替案はADRとして記録しており、一覧は[13. 関連ドキュメント](#13-関連ドキュメント)にまとめている。
 
 アーキテクチャ
 
@@ -62,7 +62,7 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
 
 採用技術
 
-- LLMとEmbeddingはOpenAI API
+- LLMはOpenAI API、EmbeddingはCohere API
 - ベクトル検索はS3 Vectors
 - データストアはDynamoDB
 - 認証はCognito
@@ -77,33 +77,7 @@ RAGパイプラインは既存実装 `ai_app/src/backend/services/rag` を移植
 
 システム全体の構成を次に示す。ブラウザからの経路は、認証、画面とAPI、ファイルアップロードの3つに分かれる。
 
-```text
-                          Browser
-                    (Vite + React SPA)
-            │              │                    │
-  Hosted UI │              │        署名付きPUT (Upload)
-            ▼              ▼                    ▼
-        Cognito       CloudFront          S3 (Documents)
-               ┌───────────┴───────────┐
-               ▼                       ▼
-        S3 (Static SPA)       API Gateway
-                            (/api/*, Authorizer)
-                                 │
-               ┌─────────────────┴─────────────────┐
-               ▼                                   ▼
-           api-fn                            chat-fn
-        (REST API)                      (SSE Streaming)
-               │
-               ▼
-              SQS
-               │
-               ▼
-          ingest-fn
-               │
-      ┌────────┼─────────┐
-      ▼        ▼         ▼
- DynamoDB     S3     S3 Vectors
-```
+![CloudFront配下のSPAとAPI Gateway、3つのLambda、DynamoDB・S3・S3 Vectorsまでのアプリケーション構成](./diagrams/アプリ設計図.svg)
 
 ブラウザはまずCognitoのHosted UIで認証を行う。以降はCloudFrontを経由し、SPAの静的ファイル取得とAPI呼び出しを行う。パスが`/api/*`のリクエストはAPI Gatewayへ転送され、REST APIはapi-fn、ストリーミングチャットはchat-fnが処理する。API GatewayのCognitoオーソライザが、Lambdaを起動する前にアクセストークンを検証する。
 
@@ -188,7 +162,7 @@ FastAPIではJWKS（JSON Web Key Set）によるJWT検証のみを行う。JWKS�
 
 FastAPIを1つのDockerイメージとして管理し、責務ごとに3つのLambdaへデプロイする。環境変数などFunctionごとの差分はCDKで設定する。
 
-api-fnとchat-fnでは、HTTPサーバーであるFastAPIをそのままLambdaで動かすためにLambda Web Adapterを利用する。Dockerfileはビルダー共通のまま、最終ステージを次の3ターゲットに分け、CDKがFunctionごとにターゲットを選択する(ADR-0003参照)。
+api-fnとchat-fnでは、HTTPサーバーであるFastAPIをそのままLambdaで動かすためにLambda Web Adapterを利用する。Dockerfileはビルダー共通のまま、最終ステージを次の3ターゲットに分け、CDKがFunctionごとにターゲットを選択する。
 
 | ターゲット | Function | 構成 |
 |-----------|----------|------|
@@ -217,7 +191,7 @@ RAGチャットを担当するFunctionである。LangGraphによるSelf-RAGを�
 
 LangChain系ライブラリは容量が大きいため、chat-fnのみでロードする。
 
-既存実装 `ai_app/src/backend/services/rag` を移植する。移植時の差し替えは次のとおり。
+RAGパイプラインは既存実装を移植する。移植時の差し替えは次の通り。
 
 | 対象 | 移植元 | 本構成 |
 |------|--------|--------|
@@ -286,7 +260,7 @@ api-fn
 status = uploaded
 ```
 
-SPAはまずapi-fnからアップロード用の署名付きURLを取得する。api-fnはこのときドキュメントをuploadingステータスで登録する。アップロードが完了しないドキュメントを後から監視でき、CloudTrailやログとの突き合わせも容易になる。
+SPAはまずapi-fnからアップロード用の署名付きURLを取得する。api-fnはこのときドキュメントをuploadingステータスで登録する。アップロードが完了しないドキュメントを後から監視でき、ログとの突き合わせも容易になる。
 
 SPAは取得したURLへファイルをPUTし、最後にapi-fnへ完了を登録する。この時点でステータスがuploadedになる。
 
@@ -304,7 +278,7 @@ SQS
 ingest-fn
 ```
 
-api-fnは取込リクエストを受けるとSQSへメッセージを送信し、ingest-fnがそれを受けて非同期に処理する。処理に失敗したメッセージはDLQ（Dead Letter Queue）へ退避する。
+api-fnは取込リクエストを受けるとSQSへメッセージを送信し、ingest-fnがそれを受けて非同期に処理する。処理に失敗したメッセージはDLQへ退避する。
 
 ドキュメントのステータスは次のように遷移する。
 
@@ -394,7 +368,7 @@ SK = CHAT#01K0R9WJH2T4Q6ZB8XN3E5VM7C
 
 ドキュメントとチャットのIDにはULIDを利用する。ULIDは先頭にミリ秒精度のタイムスタンプを持ち、辞書順がそのまま作成時刻順となる。ユーザーを表すPKと、エンティティ種別およびIDを表すSKの組み合わせで、ユーザー単位の作成時刻順一覧を実現する。
 
-全ユーザー横断のチャット履歴一覧はGSI（Global Secondary Index）で取得する。GSIはテーブルとは別のキーで検索するための二次インデックスであり、ChatとDocumentsで共用する。
+全ユーザー横断のチャット履歴一覧はGSIで取得する。GSIはテーブルとは別のキーで検索するための二次インデックスであり、ChatとDocumentsで共用する。
 
 ```text
 Chat:
@@ -580,11 +554,11 @@ chat-fnはLambda Handlerを持たないため、SSEを配信し終えた時点�
 
 #### トレース
 
-3つのLambdaとAPI Gatewayのステージでアクティブトレースを有効にし、X-Rayでリクエストの経路とレイテンシを追跡する。アプリ内の計装はapi-fnとingest-fnで行い、DynamoDB・S3・SQS・S3 Vectorsへのboto3呼び出しとCohereへのHTTP呼び出しに加えて、リクエスト全体と取込処理の各段をサブセグメントとして記録する。さらにサブセグメントへはRequest IDをアノテーションとして付け、ログとトレースを相互に辿れるようにする。
+3つのLambdaとAPI Gatewayのステージでアクティブトレースを有効にし、X-Rayでリクエストの経路とレイテンシを追跡する。アプリ内のトレース処理はapi-fnとingest-fnで行い、DynamoDB・S3・SQS・S3 Vectorsへのboto3呼び出しとCohereへのHTTP呼び出しに加えて、リクエスト全体と取込処理の各段をサブセグメントとして記録する。さらにサブセグメントへはRequest IDをアノテーションとして付け、ログとトレースを相互に辿れるようにする。
 
 ingest-fnは通常のLambda Handlerであり、X-Rayのコンテキストはランタイムから受け取る。一方、api-fnとchat-fnが利用するLambda Web Adapterは、X-Rayのトレースヘッダーをアプリへ転送しない。しかもランタイムが呼び出しごとに更新する環境変数は、アプリのプロセスからは参照できない。そのため、Lambda Web Adapterが転送するLambda contextに含まれるトレースIDからコンテキストを復元する。
 
-ただし、chat-fnではアプリ内の計装を行わない。RAGパイプラインがベクトル検索を並行実行するため、X-Ray SDKのスレッドローカルなコンテキストが壊れるからである。判断の経緯は[ADR-0014](./adr/0014-xray-app-instrumentation-scope.md)に記載する。それでもLambda自身のセグメントは記録されるため、サービスマップと関数単位のレイテンシは得られる。またノードごとの所要時間は、構造化ログで追跡する。
+ただし、chat-fnではアプリ内のトレース処理を行わない。RAGパイプラインがベクトル検索を並行実行するため、X-Ray SDKのスレッドローカルなコンテキストが壊れるからである。判断の経緯は[ADR-0014](./adr/0014-xray-app-instrumentation-scope.md)に記載する。それでもLambda自身のセグメントは記録されるため、サービスマップと関数単位のレイテンシは得られる。またノードごとの所要時間は、構造化ログで追跡する。
 
 #### アラーム
 
@@ -600,35 +574,17 @@ AWSへの認証はOIDCとし、長期アクセスキーはGitHubへ保存しな�
 
 デプロイに必要なバケット名や関数名はGitHub側へ複製せず、各スタックの出力を`DescribeStacks`で都度取得する。SPAのビルド時に埋め込むCognitoの設定値も同様に扱い、Cognitoを作り直しても同期ずれが起きないようにする。
 
-フロントエンドのデプロイフローを次に示す。
+CI/CDの全体像を次に示す。
 
-```text
-Build
-↓
-S3 Sync
-↓
-CloudFront Invalidation
-```
+![GitHub ActionsからOIDCでAssumeRoleし、SPAをS3へ同期、イメージをECRへプッシュしてLambdaを更新するCI/CD構成](./diagrams/CICD設計図.svg)
 
-ビルドした静的ファイルをS3へ同期し、CloudFrontのキャッシュを無効化して反映する。
-
-バックエンドのデプロイフローを次に示す。
-
-```text
-Docker Build
-↓
-ECR Push
-↓
-Lambda Update
-```
-
-DockerイメージをビルドしてECRへプッシュし、3つのLambdaを新しいイメージへ更新する。
+フロントエンドは、ビルドした静的ファイルをS3へ同期し、CloudFrontのキャッシュを無効化して反映する。バックエンドは、DockerイメージをビルドしてECRへプッシュし、3つのLambdaを新しいイメージへ更新する。
 
 ## 11. コスト
 
 ### 11.1 コスト方針
 
-固定費ゼロを優先し、次のリソースを利用しない。
+固定費の回避を優先し、次のリソースを利用しない。
 
 - VPC
 - NAT Gateway
@@ -677,12 +633,12 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 
 設計判断の根拠、代替案、トレードオフは次のADRに記録している。
 
-- [ADR-0001: サーバーレス構成による固定費ゼロ方針](./adr/0001-serverless-zero-fixed-cost.md)
-- [ADR-0002: SPAの静的配信を採用、SSR不採用](./adr/0002-spa-no-ssr.md)
+- [ADR-0001: サーバーレス構成による固定費回避方針](./adr/0001-serverless-zero-fixed-cost.md)
+- [ADR-0002: SPAによる静的配信を採用する](./adr/0002-spa-no-ssr.md)
 - [ADR-0003: 単一のDockerfileから責務別に3つのLambdaをビルドする](./adr/0003-single-dockerfile-three-lambdas.md)
 - [ADR-0004: Cognito Hosted UI採用、バックエンドはJWT検証のみ](./adr/0004-cognito-jwt-verification-only.md)
 - [ADR-0005: ベクトルDBにS3 Vectorsを採用](./adr/0005-s3-vectors.md)
-- [ADR-0006: チャット永続化をDynamoDBシングルテーブルへ差し替え](./adr/0006-dynamodb-single-table.md)
+- [ADR-0006: 永続化先にDynamoDBを採用し、シングルテーブルで設計する](./adr/0006-dynamodb-single-table.md)
 - [ADR-0007: 署名付きURLによる直接アップロードと取込の分離](./adr/0007-upload-ingest-separation.md)
 - [ADR-0008: APIキー管理にSSM Parameter Storeを採用](./adr/0008-ssm-parameter-store.md)
 - [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md) — ADR-0011により失効
@@ -690,7 +646,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
 - [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
-- [ADR-0014: X-Rayのアプリ内計装をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
+- [ADR-0014: X-Rayのアプリ内トレース処理をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
 
 認証の詳細設計とコストの試算は次のドキュメントで管理する。
 
