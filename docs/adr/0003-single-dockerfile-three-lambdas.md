@@ -22,7 +22,7 @@ FastAPIを1つのコードベース・1つのDockerfileで管理し、api-fn、c
 
 api-fnとchat-fnはHTTPリクエストを受けるため、FastAPIをそのままLambdaで動かすLambda Web Adapterを利用し、ingest-fnはSQSトリガーで起動しHTTPを受けないため利用しない。
 
-依存管理は`pyproject.toml`1つのままで、ターゲットごとにインストールする依存グループだけが異なる。api-fnのイメージにはLangGraphが存在しないため、`app/main.py`はLangGraphの有無を判定し、存在する場合のみチャットのルーターを読み込む。
+依存管理は`pyproject.toml`1つのままで、ターゲットごとにインストールする依存グループだけが異なる。api-fnにはLangGraphを含めず、チャット用ルーターもロードしない。
 
 この分離により、import時間とイメージサイズは次のようになる。
 
@@ -32,9 +32,9 @@ api-fnとchat-fnはHTTPリクエストを受けるため、FastAPIをそのま�
 | ingest-fn | 約0.4秒 | 295MB |
 | chat-fn | 約2.5秒 | 464MB |
 
-import時間はローカル環境で`python -X importtime`により計測した。Lambdaの初回起動に近づけるため、`.pyc`を事前生成した上でファイルキャッシュを落とした状態で測っている。Lambda上のinit durationは計測していない。chat-fnとの差である約1.8秒はLangChain, LangGraphのimportが占めており、api-fnとingest-fnはこれを負担しない。
+import時間はローカル環境で`python -X importtime`により計測した。ただし、Lambda上のinit durationは計測していない。chat-fnとの差である約1.8秒はLangChain, LangGraphのimportが占める。
 
-イメージサイズの差である約170MBは、コールドスタートには直結しないが、ECRのストレージ費用とイメージ更新の転送量に効く。
+イメージサイズはchat-fnが他のFunctionより約170MB大きい。これはコールドスタート時間に直接換算できる値ではないが、ECRのストレージ使用量やイメージ更新時の転送量に影響する。
 
 ## Consequences
 
@@ -48,7 +48,7 @@ import時間はローカル環境で`python -X importtime`により計測した�
 
 - 最終ターゲットが3つに増え、Dockerfileの構造が複雑になる
 - ingest-fnはLangChain, LangGraphを入れないため、チャンク分割を自前実装する必要がある
-- 1回のリリースで3つのFunctionを更新する必要がある
+- 1つのリリースで3つのFunctionをビルド・デプロイする必要がある
 
 ## Alternatives
 
@@ -56,7 +56,7 @@ import時間はローカル環境で`python -X importtime`により計測した�
 
 デプロイと管理は最も単純になる。しかし、LangChainの読み込みが全リクエストのコールドスタートを遅くし、SSEと取込で異なるタイムアウト設定を1つのFunctionで両立できない。SQSトリガーとHTTPの混在も、次の問題を招く。
 
-- SQSトリガーは失敗時に例外を送出してDLQへ退避させる設計であるのに対し、HTTPは例外を捕捉して500を返す必要があり、同一アプリで両立しない
+- SQSトリガーは失敗時に例外を送出してDLQへ退避させる設計であるのに対し、HTTPは例外を捕捉して500を返す必要があり、同一のエラーハンドリング設計では扱いにくい
 - 取込の同時実行がAPIと同じ同時実行枠を消費し、APIのスロットリングを招く
 
 ### ZIPパッケージとLambda Layer
@@ -65,4 +65,4 @@ import時間はローカル環境で`python -X importtime`により計測した�
 
 ### 責務ごとにDockerfileを分ける
 
-各Dockerfileが単純になり、Function間でビルドが独立する。chat-fnの依存を更新してもapi-fnのイメージに影響しない。しかし、Dockerfileと依存定義が3つに分かれ、ソースツリーも分ける場合、settings.pyのような共有設定が3箇所へ複製される。共通パッケージへ切り出せば防げるが、パッケージ管理の手間が増える。
+各Dockerfileが単純になり、Function間でビルドが独立する。chat-fnの依存を更新してもapi-fnのイメージに影響しない。しかし、Dockerfileと依存定義が3つに分かれ、ソースツリーも分ける場合、settings.pyのような共有設定が3箇所へ複製される。共通パッケージへ切り出せば防げるが、パッケージ管理の手間が増える。1つのDockerfileでも最終ターゲットを分ければ同じ分離を得られるため不採用とした。

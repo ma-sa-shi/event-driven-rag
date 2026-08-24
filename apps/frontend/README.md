@@ -1,51 +1,42 @@
 # frontend
 
-Vite + React 19 SPA served from S3 via CloudFront. `/api/*` is routed to the
-backend by CloudFront in production, and by the Vite dev server proxy locally,
-so requests are same-origin in both (no CORS needed).
+Vite + React 19によるSPAで、本番はS3へ配置しCloudFrontから配信する。`/api/*`は本番ではCloudFront、ローカルではVite dev serverのプロキシがバックエンドへ転送するため、どちらも同一オリジンで動作しCORSの設定は要らない。
 
-## Setup
+## セットアップ
 
 ```bash
 npm install
 ```
 
-Cognito settings are read from `.env.local` at build time; see `.env.example`.
+Cognitoの設定値はビルド時に埋め込まれる。`.env.example`を`.env.local`へコピーし、DataStackの出力値を設定する(`cdk/README.md`)。
 
-## Run dev server
+## 開発サーバー
 
 ```bash
 npm run dev
 ```
 
-Listens on http://localhost:5173 and proxies `/api` to http://localhost:8000,
-so the backend dev server has to be running too (`make dev` starts both).
+http://localhost:5173 で待ち受け、`/api`を http://localhost:8000 へプロキシする。バックエンドの開発サーバーも必要なため、通常はリポジトリルートの`make dev`で両方を起動する。
 
-## Test
+## テスト
 
 ```bash
-npm test                       # vitest run
-npm run test:watch             # watch mode
-npx vitest run test/lib/sse.test.ts          # single file
-npx vitest run -t "コメント行を読み飛ばす"    # single test by name
+npm test
 ```
 
-Tests live under `test/`, mirroring the `src/` layout. They run in jsdom with
-React Testing Library. Vitest globals are not injected — import `describe` /
-`it` / `expect` / `vi` from `vitest` in each file.
+テストは`src/`と同じ構成で`test/`に置き、jsdomとReact Testing Libraryで実行する。Vitestのグローバルは注入していないため、`describe` / `it` / `expect` / `vi`は各ファイルでimportする。
 
-## Build
+## ビルド
 
 ```bash
 npm run build
 ```
 
-`tsc -b` type-checks `src/`, `vite.config.ts` and `test/` (one tsconfig each,
-wired through the references in `tsconfig.json`), then Vite bundles into `dist/`.
+`tsc -b`が`src/`・`vite.config.ts`・`test/`を型チェックしたうえで、Viteが`dist/`へバンドルする。
 
 ## Lint / Format
 
 ```bash
 npm run lint
-npm run format                 # format:check for a CI-style check
+npm run format
 ```
