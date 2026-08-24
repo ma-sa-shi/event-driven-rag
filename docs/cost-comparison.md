@@ -157,6 +157,6 @@ Lambdaの無料枠(400,000 GB秒/月)は無視できないが、適用条件がA
 
 ## 関連ドキュメント
 
-- [ADR-0001: サーバーレス構成による固定費ゼロ方針](./adr/0001-serverless-zero-fixed-cost.md)
+- [ADR-0001: サーバーレス構成による固定費回避方針](./adr/0001-serverless-zero-fixed-cost.md)
 - [ADR-0005: ベクトルDBにS3 Vectorsを採用](./adr/0005-s3-vectors.md)
 - [システム設計書 11. コスト](./architecture.md#11-コスト)
