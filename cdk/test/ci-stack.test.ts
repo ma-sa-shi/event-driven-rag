@@ -94,7 +94,7 @@ describe('デプロイロールの信頼ポリシー', () => {
     // 2026-07-15以降に作成されたリポジトリはowner IDとrepository IDをsubに含む。
     // 旧形式のままだとAssumeRoleWithWebIdentityが失敗する
     expect(DEPLOY_SUBJECT).toBe(
-      'repo:ma-sa-shi@265779122/event-driven-rag@1304510072:ref:refs/heads/main',
+      'repo:ma-sa-shi@265779122/serverless-rag-chat@1304510072:ref:refs/heads/main',
     );
     expect(DEPLOY_SUBJECT).not.toContain('*');
   });
