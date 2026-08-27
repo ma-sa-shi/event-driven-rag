@@ -13,10 +13,10 @@ from botocore.exceptions import ClientError
 from app.ingest.embeddings import EMBEDDING_DIMENSION
 from app.ingest.extract import UnsupportedFileTypeError
 from app.ingest.pipeline import DocumentNotFoundError, IngestPipeline
-from app.ingest.vectors import VectorIndex
 from app.ingest_handler import handler
 from app.metrics import DOCUMENT_INGEST_FAILURES, DOCUMENTS_INGESTED, INGESTED_CHUNKS
 from app.repositories.documents import DocumentRepository
+from app.vectors import VectorIndex
 from tests.conftest import (
     BUCKET_NAME,
     TABLE_NAME,
@@ -24,7 +24,7 @@ from tests.conftest import (
     emitted_metrics,
 )
 from tests.factories import put_document
-from tests.ingest.test_vectors import StubS3VectorsClient
+from tests.test_vectors import StubS3VectorsClient
 
 USER_ID = "user-123"
 DOCUMENT_ID = "01JDOC0000000000000000000"
@@ -205,6 +205,30 @@ def test_reingest_without_leftovers_does_not_delete(
     handler(build_event(), lambda_context)
 
     assert vectors_client.delete_calls == []
+
+
+def test_chunk_count_is_reserved_before_vectors_are_registered(
+    aws, pipeline, vectors_client, lambda_context, monkeypatch
+):
+    """PutVectorsの直後に落ちても削除APIが消し漏らさないよう、登録前にchunkCountを確定させる。"""
+    put_document(
+        aws.table,
+        user_id=USER_ID,
+        document_id=DOCUMENT_ID,
+        filename=FILENAME,
+        status="processing",
+    )
+    upload(aws, ("段落。" * 400).encode())
+    observed: list[int] = []
+    monkeypatch.setattr(
+        vectors_client,
+        "put_vectors",
+        lambda **kwargs: observed.append(int(get_document(aws)["chunkCount"])),
+    )
+
+    handler(build_event(), lambda_context)
+
+    assert observed[0] == int(get_document(aws)["chunkCount"])
 
 
 def test_marks_failed_and_reraises_when_file_is_missing(

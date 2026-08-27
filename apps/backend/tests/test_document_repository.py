@@ -67,3 +67,29 @@ def test_lists_are_newest_first_and_scoped_by_user(repository, aws):
         "doc-3",
         "doc-1",
     ]
+
+
+def test_reserve_chunk_count_only_raises_the_value(repository, aws):
+    put_document(aws.table, user_id="user-a", document_id="doc-1")
+
+    repository.reserve_chunk_count("user-a", "doc-1", 3)
+    assert int(repository.get_owned("user-a", "doc-1")["chunkCount"]) == 3
+
+    # 再取込でチャンク数が減っても、登録済みベクトルを取りこぼさないよう下げない
+    repository.reserve_chunk_count("user-a", "doc-1", 1)
+    assert int(repository.get_owned("user-a", "doc-1")["chunkCount"]) == 3
+
+
+def test_delete_removes_item_but_rejects_documents_being_ingested(repository, aws):
+    put_document(aws.table, user_id="user-a", document_id="doc-1", status="processing")
+
+    with pytest.raises(DocumentStatusError):
+        repository.delete("user-a", "doc-1")
+    assert repository.get_owned("user-a", "doc-1") is not None
+
+    repository.update_status("user-a", "doc-1", "failed", allowed_from=("processing",))
+    repository.delete("user-a", "doc-1")
+    assert repository.get_owned("user-a", "doc-1") is None
+
+    # 削除の再実行は失敗させない
+    repository.delete("user-a", "doc-1")

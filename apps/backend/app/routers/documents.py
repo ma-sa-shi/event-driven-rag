@@ -9,12 +9,14 @@ from app.dependencies import (
     get_document_repository,
     get_document_storage,
     get_ingest_queue,
+    get_vector_index,
 )
 from app.ingest_queue import IngestQueue
 from app.logger import logger
 from app.repositories.documents import DocumentRepository, DocumentStatusError
 from app.schemas import DocumentResponse
 from app.storage import DocumentStorage
+from app.vectors import VectorIndex
 
 router = APIRouter(prefix="/documents")
 
@@ -128,6 +130,37 @@ def start_ingest(
         raise
     logger.info("document ingest queued", document_id=document_id)
     return IngestResponse(documentId=document_id, status="processing")
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+    document_id: str,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    repository: Annotated[DocumentRepository, Depends(get_document_repository)],
+    storage: Annotated[DocumentStorage, Depends(get_document_storage)],
+    vector_index: Annotated[VectorIndex, Depends(get_vector_index)],
+) -> None:
+    """ベクトル・原本・レコードをまとめて削除する。削除できるのは本人のドキュメントのみ。"""
+    # DynamoDBのレコードを最後に消すことで、途中で失敗しても同じ手順で再実行できる
+    document = repository.get_owned(user_id, document_id)
+    if document is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="document not found")
+    if document["status"] == "processing":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="document is being ingested"
+        )
+
+    # 未取込のドキュメントはchunkCountを持たない。Decimalのままではrange()へ渡せない
+    chunk_count = int(document.get("chunkCount", 0))
+    vector_index.delete_document(document_id, chunk_count)
+    storage.delete_object(document["s3Key"])
+    try:
+        repository.delete(user_id, document_id)
+    except DocumentStatusError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="document is being ingested"
+        ) from None
+    logger.info("document deleted", document_id=document_id, chunk_count=chunk_count)
 
 
 @router.get("/{document_id}/download-url")
