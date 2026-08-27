@@ -33,11 +33,11 @@ function renderTable(props: Partial<Parameters<typeof DocumentTable>[0]> = {}) {
   );
 }
 
-function ingestButtonsByRow(): (HTMLElement | null)[] {
+function buttonsByRow(name: string): (HTMLElement | null)[] {
   return screen
     .getAllByRole("row")
     .slice(1)
-    .map((row) => within(row).queryByRole("button", { name: "取込開始" }));
+    .map((row) => within(row).queryByRole("button", { name }));
 }
 
 describe("DocumentTable", () => {
@@ -62,7 +62,7 @@ describe("DocumentTable", () => {
 
     renderTable({ documents, onIngest: vi.fn() });
 
-    expect(ingestButtonsByRow().map(Boolean)).toEqual([
+    expect(buttonsByRow("取込開始").map(Boolean)).toEqual([
       false, // uploading
       true, // uploaded
       false, // processing
@@ -79,6 +79,41 @@ describe("DocumentTable", () => {
 
     expect(
       screen.queryByRole("button", { name: "取込開始" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("削除ボタンは自分のドキュメントかつ取込中でないときだけ表示する", () => {
+    const statuses: DocumentStatus[] = [
+      "uploading",
+      "uploaded",
+      "processing",
+      "ingested",
+      "failed",
+    ];
+    const documents = statuses.map((status) =>
+      document({ documentId: status, status }),
+    );
+    documents.push(document({ documentId: "others", userId: "user-other" }));
+
+    renderTable({ documents, onDelete: vi.fn() });
+
+    expect(buttonsByRow("削除").map(Boolean)).toEqual([
+      true, // uploading
+      true, // uploaded
+      false, // processing
+      true, // ingested
+      true, // failed
+      false, // 他人のドキュメント
+    ]);
+  });
+
+  it("onDeleteを渡さない場合は削除ボタンを表示しない", () => {
+    renderTable({
+      documents: [document({ documentId: "doc-1", status: "ingested" })],
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "削除" }),
     ).not.toBeInTheDocument();
   });
 

@@ -1,8 +1,11 @@
 """S3 Vectorsインデックスへのベクトル登録・削除。
 
+ingest-fnが登録に、api-fnがドキュメント削除に使う。
 metadataはfilterable=documentId、non-filterable=text / filename(architecture.md 8.3)。
 vector keyは`<documentId>#<チャンク番号>`とし、chat-fnのRetrieverが
 チャンク単位でRRFの名寄せに使う(app/rag/retriever.py)。
+DeleteVectorsはキー指定しか受け付けず、metadataによる条件削除ができないため、
+削除側はDynamoDBのchunkCountからキーを組み立て直す。
 """
 
 from typing import Any
@@ -52,6 +55,13 @@ class VectorIndex:
         ]
         for batch in _batched(items):
             self._client.put_vectors(indexArn=self._index_arn, vectors=batch)
+
+    @tracer.capture_method
+    def delete_document(self, document_id: str, chunk_count: int) -> None:
+        """ドキュメントの全チャンクを削除する。chunk_countは登録済みのベクトル数以上であること。"""
+        self.delete_keys(
+            [vector_key(document_id, index) for index in range(chunk_count)]
+        )
 
     def delete_keys(self, keys: list[str]) -> None:
         for batch in _batched(keys):

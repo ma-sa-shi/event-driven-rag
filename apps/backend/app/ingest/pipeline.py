@@ -14,11 +14,11 @@ import boto3
 from app.ingest.chunking import split_text
 from app.ingest.embeddings import CohereEmbedder
 from app.ingest.extract import extract_text
-from app.ingest.vectors import VectorIndex, vector_key
 from app.logger import logger
 from app.repositories.documents import DocumentRepository
 from app.settings import get_settings
 from app.ssm import get_parameter
+from app.vectors import VectorIndex, vector_key
 
 # 取込完了時に許可する遷移元
 INGEST_ALLOWED_FROM = ("processing", "failed", "ingested")
@@ -56,6 +56,8 @@ class IngestPipeline:
         logger.info("document text extracted", chunk_count=len(chunks))
 
         vectors = self.embedder.embed_documents(chunks)
+        # 登録前にchunkCountを引き上げ、途中で失敗しても削除APIが消し漏らさないようにする
+        self.repository.reserve_chunk_count(user_id, document_id, len(chunks))
         self.vector_index.put_chunks(
             document_id=document_id,
             filename=filename,

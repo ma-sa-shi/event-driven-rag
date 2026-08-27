@@ -28,6 +28,8 @@
 
 回答生成はSelf-RAGで行う。Multi Query、ベクトル検索、RRFによる統合、Cohere Rerank、回答生成、自己評価、最大1回のリトライという流れをLangGraphで構成している。
 
+![RAGパイプライン](./docs/diagrams/RAGパイプライン.svg)
+
 ![CICD設計図](./docs/diagrams/CICD設計図.svg)
 
 CI/CDはGitHub Actionsで構成し、AWSへの認証はOIDCで行い、長期アクセスキーを持たせない。プルリクエストではlintとテストのみを実行し、`main`へのマージでフロントエンドのS3同期とバックエンドのECRプッシュ・Lambda更新を行う。インフラの変更はワークフローに含めず、`cdk deploy`を手元から実行する。
@@ -48,7 +50,7 @@ CI/CDはGitHub Actionsで構成し、AWSへの認証はOIDCで行い、長期ア
 
 ## 設計上の判断(ADR)
 
-主要な判断は次のとおり。全14件は[docs/adr/](./docs/adr/)にある。
+主要な判断は次のとおり。全15件は[docs/adr/](./docs/adr/)にある。
 
 | ADR | 判断と理由 |
 |---|---|

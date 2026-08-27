@@ -11,7 +11,8 @@ DocumentStatus = Literal["uploading", "uploaded", "processing", "ingested", "fai
 class DocumentItem(TypedDict):
     """DynamoDBに保存するDocumentsエンティティ。
 
-    chunkCountは取込完了時のみ付与される。DynamoDBは数値をDecimalで返す。
+    chunkCountは取込時に付与され、登録済みのベクトル数以上であることを保つ。
+    DynamoDBは数値をDecimalで返す。
     """
 
     PK: str
@@ -29,7 +30,7 @@ class DocumentItem(TypedDict):
 
 
 class DocumentStatusError(Exception):
-    """現在のステータスからは許可されない遷移。"""
+    """現在のステータスでは許可されない遷移・操作。"""
 
 
 class DocumentRepository:
@@ -96,6 +97,43 @@ class DocumentRepository:
             Limit=limit,
         )
         return res["Items"]
+
+    def reserve_chunk_count(
+        self, user_id: str, document_id: str, chunk_count: int
+    ) -> None:
+        """chunkCountを登録予定のチャンク数まで引き上げる。既に大きい場合は何もしない。
+
+        取込がPutVectorsの後に失敗してもchunkCountが登録済みベクトル数を下回らないようにし、
+        削除APIがベクトルを消し残さないための不変条件を保つ。
+        """
+        try:
+            self._table.update_item(
+                Key={"PK": f"USER#{user_id}", "SK": f"DOC#{document_id}"},
+                UpdateExpression="SET chunkCount = :chunkCount",
+                ConditionExpression=Attr("chunkCount").not_exists()
+                | Attr("chunkCount").lt(chunk_count),
+                ExpressionAttributeValues={":chunkCount": chunk_count},
+            )
+        except self._table.meta.client.exceptions.ConditionalCheckFailedException:
+            pass
+
+    def delete(self, user_id: str, document_id: str) -> None:
+        """ドキュメントを削除する。削除済みのドキュメントを指定しても成功として扱う。
+
+        取込中に削除するとingest-fnが後からベクトルを登録し、レコードのないベクトルが残る。
+        条件付き削除でprocessingを弾き、DocumentStatusErrorを送出する。
+        """
+        try:
+            self._table.delete_item(
+                Key={"PK": f"USER#{user_id}", "SK": f"DOC#{document_id}"},
+                # 属性の比較は項目が無いと偽になる為、削除済みを明示的に許可する
+                ConditionExpression=Attr("status").ne("processing")
+                | Attr("PK").not_exists(),
+            )
+        except self._table.meta.client.exceptions.ConditionalCheckFailedException:
+            raise DocumentStatusError(
+                "cannot delete a document being ingested"
+            ) from None
 
     def update_status(
         self,

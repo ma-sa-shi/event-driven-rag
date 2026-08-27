@@ -19,6 +19,7 @@
 - [6. 処理フロー](#6-処理フロー)
   - [6.1 アップロードフロー](#61-アップロードフロー)
   - [6.2 取込フロー](#62-取込フロー)
+  - [6.3 削除フロー](#63-削除フロー)
 - [7. RAGパイプライン](#7-ragパイプライン)
   - [7.1 処理フロー](#71-処理フロー)
   - [7.2 使用モデル](#72-使用モデル)
@@ -109,7 +110,7 @@ axiosはREST APIの呼び出しに利用し、アクセストークンの付与�
 | / | RAGチャット + 全ユーザーのチャット履歴 |
 | /chat/{chat_id} | チャット詳細。チャット履歴から遷移する |
 | /user/{user_id} | ユーザー情報 + そのユーザーのチャット履歴 + アップロード履歴 |
-| /documents | ドキュメント管理。一覧・アップロード・取込を行う |
+| /documents | ドキュメント管理。一覧・アップロード・取込・削除を行う |
 | /auth/callback | Cognito Hosted UIからのリダイレクトを受け、認可コードをトークンへ交換する |
 
 未認証時は`/auth/callback`を除く全ルートでHosted UIへリダイレクトする。
@@ -184,6 +185,7 @@ REST APIを担当するFunctionである。次のAPIを提供する。
 - 署名付きURL発行。アップロード用PUTと閲覧用GET
 - アップロード完了登録
 - 取込開始
+- ドキュメント削除
 
 ### 5.3 chat-fn
 
@@ -226,7 +228,7 @@ HTTPリクエストを受けないFunctionのため、Lambda Web Adapterは利�
 
 ## 6. 処理フロー
 
-アップロードと取込は分離し、それぞれ独立したフローとする。
+アップロードと取込は分離し、それぞれ独立したフローとする。取り込んだドキュメントは削除フローでまとめて消す。
 
 ### 6.1 アップロードフロー
 
@@ -294,6 +296,27 @@ ingested または failed
 
 取込中はprocessingとなり、成功すればingested、失敗すればfailedで終了する。failedのドキュメントは再度取込を開始できる。
 
+### 6.3 削除フロー
+
+削除は本人のドキュメントに対してのみ実行でき、ベクトル・原本・レコードをまとめて消す。
+
+```text
+SPA
+    │
+    ▼
+api-fn
+    │
+    ├─▶ S3 Vectors  ベクトル削除
+    │
+    ├─▶ S3          原本削除
+    │
+    └─▶ DynamoDB    レコード削除
+```
+
+api-fnは3つのストアをこの順で消す。途中で失敗してもDynamoDBのレコードは残るため、ユーザーが削除をやり直せば消し残しを取り除ける。S3 Vectorsは存在しないキーの削除を、S3も存在しないオブジェクトの削除をエラーとしないため、同じ手順を何度実行しても副作用はない。
+
+取込中のドキュメントは削除できない。ingest-fnが後からベクトルを登録し、レコードを持たないベクトルだけが残るためである。
+
 ## 7. RAGパイプライン
 
 チャットの回答生成には、LangGraphで実装したSelf-RAGを採用する。生成した回答を自己評価し、品質が不十分な場合は再試行する。
@@ -302,25 +325,7 @@ ingested または failed
 
 パイプラインの処理フローを次に示す。
 
-```text
-Query
-    ↓
-Multi Query
-    ↓
-Vector Search
-    ↓
-RRF
-    ↓
-Cohere Rerank
-    ↓
-LLM Generation
-    ↓
-Self Evaluation
-    ↓
-Retry (Max 1)
-    ↓
-Answer
-```
+![質問からMulti Query、ベクトル検索、RRF、Cohere Rerank、回答生成、自己評価、最大1回のリトライを経て回答に至るRAGパイプライン](./diagrams/RAGパイプライン.svg)
 
 質問からMulti Queryで複数の検索クエリを生成し、クエリごとにS3 Vectorsでベクトル検索を行う。検索結果はRRF（Reciprocal Rank Fusion）で統合し、上位ドキュメントをCohere Rerankで関連度順に絞り込んだうえでLLMが回答を生成する。生成結果は自己評価し、不十分であれば最大1回リトライする。
 
@@ -401,11 +406,13 @@ S3 VectorsはEmbeddingの保存とベクトル検索に利用する。Embedding�
 
 | Key | フィルタ | 用途 |
 |-----|---------|------|
-| documentId | 可能 | ドキュメント削除時のベクトル特定 |
+| documentId | 可能 | 検索結果から原本を辿るための識別子 |
 | text | 不可 | チャンク本文。検索結果から回答生成に利用する |
 | filename | 不可 | 回答の出典表示 |
 
 textとfilenameはフィルタ不可のMetadataとして登録する。フィルタ不可のMetadataはインデックス作成後に変更できないため、インデックス定義で指定する。
+
+ベクトルのキーは`<documentId>#<チャンク番号>`とする。S3 VectorsのDeleteVectorsはキー指定のみを受け付け、Metadataによる条件削除に対応しないため、ドキュメント単位の削除はDynamoDBのchunkCountからキーを組み立てて実行する。この整合を保つため、ingest-fnはベクトルを登録する前にchunkCountを更新する。
 
 検索は全ユーザーのドキュメントを横断し、ユーザーによるフィルタは行わない。
 
@@ -647,6 +654,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
 - [ADR-0014: X-Rayのアプリ内トレース処理をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
+- [ADR-0015: ドキュメントを物理削除し、ベクトルはキーの再構成で消す](./adr/0015-document-hard-delete.md)
 
 認証の詳細設計とコストの試算は次のドキュメントで管理する。
 
