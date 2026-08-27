@@ -654,6 +654,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0012: チャットのSSEをPOSTとAuthorizationヘッダーで配信する](./adr/0012-sse-post-with-authorization-header.md)
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
 - [ADR-0014: X-Rayのアプリ内トレース処理をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
+- [ADR-0015: ドキュメントを物理削除し、ベクトルはキーの再構成で消す](./adr/0015-document-hard-delete.md)
 
 認証の詳細設計とコストの試算は次のドキュメントで管理する。
 
