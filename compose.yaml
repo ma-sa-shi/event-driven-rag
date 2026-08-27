@@ -8,7 +8,7 @@ services:
       context: apps/backend
       # Without this, docker compose builds the last stage (worker)
       target: web
-    image: event-driven-rag-backend
+    image: serverless-rag-chat-backend
     ports:
       - "8000:8000"
     healthcheck:

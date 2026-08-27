@@ -103,7 +103,7 @@ aws cloudfront create-invalidation --distribution-id <DistributionId出力> --pa
 
 ## CI/CD (CiStack)
 
-CiStackはGitHub ActionsのOIDC IDプロバイダと、Actionsが引き受けるデプロイ用ロール`event-driven-rag-github-actions`を作る。権限はSPAの同期、CloudFrontのキャッシュ無効化、ECRへのプッシュ、Lambdaのイメージ更新、スタック出力の読み取りに限定している。ワークフローは`cdk deploy`を行わないため、CloudFormationの更新権限は持たせていない。
+CiStackはGitHub ActionsのOIDC IDプロバイダと、Actionsが引き受けるデプロイ用ロール`serverless-rag-chat-github-actions`を作る。権限はSPAの同期、CloudFrontのキャッシュ無効化、ECRへのプッシュ、Lambdaのイメージ更新、スタック出力の読み取りに限定している。ワークフローは`cdk deploy`を行わないため、CloudFormationの更新権限は持たせていない。
 
 ### GitHub側の設定
 
