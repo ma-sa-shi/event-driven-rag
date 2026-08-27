@@ -6,6 +6,7 @@ import { fetchUser, listUserChats, listUserDocuments } from "../api/users";
 import { ChatHistory } from "../components/ChatHistory";
 import { DocumentTable } from "../components/DocumentTable";
 import { isNotFound, toErrorMessage } from "../lib/errors";
+import { useDeleteDocument } from "../lib/useDeleteDocument";
 import { useOpenDocument } from "../lib/useOpenDocument";
 import "./UserDetail.css";
 
@@ -21,6 +22,7 @@ export function UserDetail() {
   const auth = useAuth();
   const [error, setError] = useState<string | null>(null);
   const { openDocument, openingId } = useOpenDocument(setError);
+  const { removeDocument, deletingId } = useDeleteDocument(setError);
 
   const userQuery = useQuery({
     queryKey: ["user", userId],
@@ -38,6 +40,11 @@ export function UserDetail() {
   const handleOpen = (documentId: string) => {
     setError(null);
     void openDocument(documentId);
+  };
+
+  const handleDelete = (documentId: string) => {
+    setError(null);
+    removeDocument(documentId);
   };
 
   return (
@@ -121,12 +128,14 @@ export function UserDetail() {
           <p className="placeholder">ドキュメントはまだありません</p>
         ) : (
           <div className="table-scroll">
-            {/* 取込は/documentsに集約している為、ここは閲覧だけ */}
+            {/* 取込は/documentsに集約している為、ここは閲覧と削除だけ */}
             <DocumentTable
               documents={documentsQuery.data}
               currentUserId={auth.user?.profile.sub}
               onOpen={handleOpen}
               openingId={openingId}
+              onDelete={handleDelete}
+              deletingId={deletingId}
             />
           </div>
         ))}

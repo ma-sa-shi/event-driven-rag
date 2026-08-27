@@ -1,6 +1,8 @@
 import axios from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { putToS3 } from "../../src/api/documents";
+import { api } from "../../src/api/client";
+import { deleteDocument, putToS3 } from "../../src/api/documents";
 
 vi.mock("../../src/auth/userManager", () => ({
   userManager: { getUser: () => Promise.resolve(null) },
@@ -8,6 +10,7 @@ vi.mock("../../src/auth/userManager", () => ({
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete api.defaults.adapter;
 });
 
 describe("putToS3", () => {
@@ -39,5 +42,26 @@ describe("putToS3", () => {
     expect(config?.headers).toEqual({
       "Content-Type": "text/plain; charset=utf-8",
     });
+  });
+});
+
+describe("deleteDocument", () => {
+  it("ドキュメントのパスへDELETEを送る", async () => {
+    let captured: InternalAxiosRequestConfig | undefined;
+    api.defaults.adapter = (config) => {
+      captured = config;
+      return Promise.resolve({
+        data: "",
+        status: 204,
+        statusText: "No Content",
+        headers: {},
+        config,
+      });
+    };
+
+    await deleteDocument("doc-1");
+
+    expect(captured?.method).toBe("delete");
+    expect(captured?.url).toBe("/documents/doc-1");
   });
 });

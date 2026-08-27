@@ -67,6 +67,11 @@ export async function startIngest(documentId: string): Promise<void> {
   await api.post(`/documents/${documentId}/ingest`);
 }
 
+/** ベクトル・原本・レコードをまとめて削除する。削除できるのは自分のドキュメントのみ。 */
+export async function deleteDocument(documentId: string): Promise<void> {
+  await api.delete(`/documents/${documentId}`);
+}
+
 /** 原本閲覧用の署名付きGET URLを取得する。 */
 export async function fetchDownloadUrl(
   documentId: string,

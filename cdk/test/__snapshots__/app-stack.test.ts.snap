@@ -137,6 +137,9 @@ exports[`スナップショット 1`] = `
             "TABLE_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefTableCD117FA1D18A8047",
             },
+            "VECTOR_INDEX_ARN": {
+              "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
+            },
           },
         },
         "MemorySize": 512,
@@ -291,6 +294,13 @@ exports[`スナップショット 1`] = `
               "Effect": "Allow",
               "Resource": {
                 "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttIngestQueue2280FF4EArnFE0694A6",
+              },
+            },
+            {
+              "Action": "s3vectors:DeleteVectors",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttVectorIndexIndexArnC883517D",
               },
             },
           ],

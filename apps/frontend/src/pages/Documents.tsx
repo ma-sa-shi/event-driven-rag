@@ -12,6 +12,7 @@ import { DocumentTable } from "../components/DocumentTable";
 import { UploadForm } from "../components/UploadForm";
 import { toErrorMessage } from "../lib/errors";
 import { ACCEPTED_EXTENSIONS, contentTypeFor } from "../lib/fileTypes";
+import { useDeleteDocument } from "../lib/useDeleteDocument";
 import { useOpenDocument } from "../lib/useOpenDocument";
 
 const DOCUMENTS_QUERY_KEY = ["documents"];
@@ -23,6 +24,7 @@ export function Documents() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const { openDocument, openingId } = useOpenDocument(setError);
+  const { removeDocument, deletingId } = useDeleteDocument(setError);
 
   const invalidateDocuments = () =>
     queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
@@ -99,6 +101,11 @@ export function Documents() {
     void openDocument(documentId);
   };
 
+  const handleDelete = (documentId: string) => {
+    setError(null);
+    removeDocument(documentId);
+  };
+
   return (
     <div>
       <h1 className="page-title">ドキュメント管理</h1>
@@ -138,6 +145,8 @@ export function Documents() {
               showOwner
               onIngest={handleIngest}
               ingestingId={ingestingId}
+              onDelete={handleDelete}
+              deletingId={deletingId}
             />
           </div>
         ))}

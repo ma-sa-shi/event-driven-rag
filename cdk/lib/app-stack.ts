@@ -128,6 +128,7 @@ export class AppStack extends cdk.Stack {
         TABLE_NAME: dataStack.table.tableName,
         DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
         INGEST_QUEUE_URL: dataStack.ingestQueue.queueUrl,
+        VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
         COGNITO_ISSUER: dataStack.userPool.userPoolProviderUrl,
         COGNITO_CLIENT_ID: dataStack.userPoolClient.userPoolClientId,
         POWERTOOLS_SERVICE_NAME: "api",
@@ -140,6 +141,13 @@ export class AppStack extends cdk.Stack {
     // 署名付きURLはLambdaロールの権限で署名される為、発行対象の操作権限が必要
     dataStack.documentsBucket.grantReadWrite(this.apiFunction);
     dataStack.ingestQueue.grantSendMessages(this.apiFunction);
+    // ドキュメント削除でベクトルを消すだけで、登録や検索は行わない
+    this.apiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3vectors:DeleteVectors"],
+        resources: [dataStack.vectorIndex.attrIndexArn],
+      }),
+    );
 
     // --- チャット Lambda (chat-fn) ---
     // LangGraph Self-RAGによるSSEストリーミングチャット

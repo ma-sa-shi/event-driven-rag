@@ -1,14 +1,29 @@
 import json
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from ulid import ULID
 
+from app.dependencies import get_vector_index
 from app.main import app
-from tests.conftest import BUCKET_NAME
+from app.vectors import VectorIndex
+from tests.conftest import BUCKET_NAME, VECTOR_INDEX_ARN
 from tests.factories import put_document
+from tests.test_vectors import StubS3VectorsClient
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def vectors_client():
+    """motoはS3 Vectorsに未対応の為、削除APIが使うVectorIndexをスタブへ差し替える。"""
+    stub = StubS3VectorsClient()
+    app.dependency_overrides[get_vector_index] = lambda: VectorIndex(
+        VECTOR_INDEX_ARN, client=stub
+    )
+    yield stub
+    app.dependency_overrides.pop(get_vector_index, None)
 
 
 def headers(token: str, **extra: str) -> dict:
@@ -151,6 +166,75 @@ def test_failed_document_can_be_reingested(make_token, aws):
     )
     assert res.status_code == 202
     assert get_document_item(aws.table, "user-abc", "doc-1")["status"] == "processing"
+
+
+def test_delete_removes_vectors_original_and_item(make_token, aws, vectors_client):
+    item = put_document(
+        aws.table,
+        user_id="user-abc",
+        document_id="doc-1",
+        status="ingested",
+        chunk_count=2,
+    )
+    aws.s3.put_object(Bucket=BUCKET_NAME, Key=item["s3Key"], Body="本文".encode())
+
+    res = client.delete(
+        "/api/documents/doc-1", headers=headers(make_token(sub="user-abc"))
+    )
+
+    assert res.status_code == 204
+    assert vectors_client.delete_calls == [
+        {"indexArn": VECTOR_INDEX_ARN, "keys": ["doc-1#0", "doc-1#1"]}
+    ]
+    assert "Contents" not in aws.s3.list_objects_v2(Bucket=BUCKET_NAME)
+    assert get_document_item(aws.table, "user-abc", "doc-1") is None
+
+
+def test_delete_document_without_vectors(make_token, aws, vectors_client):
+    """未取込のドキュメントはchunkCountを持たず、ベクトル削除を呼ばない。"""
+    put_document(aws.table, user_id="user-abc", document_id="doc-1", status="uploading")
+
+    res = client.delete(
+        "/api/documents/doc-1", headers=headers(make_token(sub="user-abc"))
+    )
+
+    assert res.status_code == 204
+    assert vectors_client.delete_calls == []
+    assert get_document_item(aws.table, "user-abc", "doc-1") is None
+
+
+def test_delete_other_users_document_returns_404(make_token, aws, vectors_client):
+    put_document(aws.table, user_id="user-abc", document_id="doc-1", chunk_count=1)
+
+    res = client.delete(
+        "/api/documents/doc-1", headers=headers(make_token(sub="user-other"))
+    )
+
+    assert res.status_code == 404
+    assert vectors_client.delete_calls == []
+    assert get_document_item(aws.table, "user-abc", "doc-1") is not None
+
+
+def test_delete_unknown_document_returns_404(make_token, aws, vectors_client):
+    res = client.delete("/api/documents/unknown-doc", headers=headers(make_token()))
+
+    assert res.status_code == 404
+    assert vectors_client.delete_calls == []
+
+
+def test_delete_during_ingest_returns_409(make_token, aws, vectors_client):
+    """取込中に消すと、ingest-fnが後から登録したベクトルだけが残る。"""
+    put_document(
+        aws.table, user_id="user-abc", document_id="doc-1", status="processing"
+    )
+
+    res = client.delete(
+        "/api/documents/doc-1", headers=headers(make_token(sub="user-abc"))
+    )
+
+    assert res.status_code == 409
+    assert vectors_client.delete_calls == []
+    assert get_document_item(aws.table, "user-abc", "doc-1") is not None
 
 
 def test_download_url_available_for_other_users_document(make_token, aws):

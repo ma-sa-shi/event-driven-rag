@@ -84,6 +84,15 @@
       outline-offset: 2px;
     }
 
+    &.danger {
+      color: var(--status-danger);
+
+      &:hover:not(:disabled) {
+        border-color: var(--status-danger);
+        color: var(--status-danger);
+      }
+    }
+
     &.primary {
       border-color: transparent;
       background: var(--accent-bg);
