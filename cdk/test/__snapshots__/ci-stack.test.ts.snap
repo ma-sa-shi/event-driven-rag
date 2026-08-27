@@ -29,7 +29,7 @@ exports[`スナップショット 1`] = `
               "Condition": {
                 "StringEquals": {
                   "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                  "token.actions.githubusercontent.com:sub": "repo:ma-sa-shi@265779122/event-driven-rag@1304510072:ref:refs/heads/main",
+                  "token.actions.githubusercontent.com:sub": "repo:ma-sa-shi@265779122/serverless-rag-chat@1304510072:ref:refs/heads/main",
                 },
               },
               "Effect": "Allow",
@@ -46,7 +46,7 @@ exports[`スナップショット 1`] = `
           "Version": "2012-10-17",
         },
         "Description": "GitHub Actions deploy role (SPA sync / Lambda image update)",
-        "RoleName": "event-driven-rag-github-actions",
+        "RoleName": "serverless-rag-chat-github-actions",
       },
       "Type": "AWS::IAM::Role",
     },

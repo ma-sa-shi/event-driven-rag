@@ -15,14 +15,14 @@ const GITHUB_OIDC_AUDIENCE = "sts.amazonaws.com";
 // IDの確認: gh api /repos/<owner>/<repo> --jq '{id, owner_id: .owner.id}'
 const GITHUB_OWNER = "ma-sa-shi";
 const GITHUB_OWNER_ID = 265779122;
-const GITHUB_REPOSITORY_NAME = "event-driven-rag";
+const GITHUB_REPOSITORY_NAME = "serverless-rag-chat";
 const GITHUB_REPOSITORY_ID = 1304510072;
 const DEPLOY_BRANCH = "main";
 
 export const DEPLOY_SUBJECT = `repo:${GITHUB_OWNER}@${GITHUB_OWNER_ID}/${GITHUB_REPOSITORY_NAME}@${GITHUB_REPOSITORY_ID}:ref:refs/heads/${DEPLOY_BRANCH}`;
 
 // ワークフローがARNを組み立てられるよう物理名を固定する
-export const DEPLOY_ROLE_NAME = "event-driven-rag-github-actions";
+export const DEPLOY_ROLE_NAME = "serverless-rag-chat-github-actions";
 
 export interface CiStackProps extends cdk.StackProps {
   dataStack: DataStack;
