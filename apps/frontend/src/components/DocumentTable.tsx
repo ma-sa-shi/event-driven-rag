@@ -14,6 +14,9 @@ interface DocumentTableProps {
   /** 省くと取込開始ボタンを出さない */
   onIngest?: (documentId: string) => void;
   ingestingId?: string | null;
+  /** 省くと削除ボタンを出さない */
+  onDelete?: (documentId: string) => void;
+  deletingId?: string | null;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -32,6 +35,8 @@ export function DocumentTable({
   showOwner,
   onIngest,
   ingestingId,
+  onDelete,
+  deletingId,
 }: DocumentTableProps) {
   return (
     <table className="document-table">
@@ -50,6 +55,11 @@ export function DocumentTable({
             onIngest !== undefined &&
             document.userId === currentUserId &&
             INGESTABLE.includes(document.status);
+          // 取込中の削除は後からベクトルが登録される為、バックエンドが409を返す
+          const canDelete =
+            onDelete !== undefined &&
+            document.userId === currentUserId &&
+            document.status !== "processing";
           return (
             <tr key={document.documentId}>
               <td className="filename">{document.filename}</td>
@@ -82,6 +92,16 @@ export function DocumentTable({
                     disabled={ingestingId === document.documentId}
                   >
                     取込開始
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => onDelete(document.documentId)}
+                    disabled={deletingId === document.documentId}
+                  >
+                    削除
                   </button>
                 )}
               </td>

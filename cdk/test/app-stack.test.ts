@@ -77,6 +77,7 @@ describe('Lambda', () => {
     expect(env).toHaveProperty('TABLE_NAME');
     expect(env).toHaveProperty('DOCUMENTS_BUCKET_NAME');
     expect(env).toHaveProperty('INGEST_QUEUE_URL');
+    expect(env).toHaveProperty('VECTOR_INDEX_ARN');
     expect(env.POWERTOOLS_LOG_LEVEL).toBe('INFO');
   });
 
@@ -311,6 +312,21 @@ describe('IAM', () => {
     );
   }
 
+  // 3関数がそれぞれS3 Vectorsの権限を持つ為、関数のロールに紐づくポリシーだけを見る
+  function actionsGrantedTo(serviceName: string): string[] {
+    const [, fn] = findFunctionByServiceName(serviceName);
+    const roleLogicalId = fn.Properties.Role['Fn::GetAtt'][0];
+    const policies = template.findResources('AWS::IAM::Policy');
+    return Object.values(policies)
+      .filter((policy) =>
+        policy.Properties.Roles.some(
+          (role: { Ref: string }) => role.Ref === roleLogicalId,
+        ),
+      )
+      .flatMap((policy) => policy.Properties.PolicyDocument.Statement)
+      .flatMap((statement) => statement.Action);
+  }
+
   test('DynamoDBテーブルへの読み書き権限が付与される', () => {
     const statement = policyStatements().find(
       (s) => Array.isArray(s.Action) && s.Action.includes('dynamodb:PutItem'),
@@ -333,6 +349,16 @@ describe('IAM', () => {
     );
     expect(statement).toBeDefined();
     expect(statement.Action).toContain('s3vectors:DeleteVectors');
+  });
+
+  test('api-fnにはS3 Vectorsの削除権限だけが付与される', () => {
+    const actions = actionsGrantedTo('api');
+    expect(actions).toContain('s3vectors:DeleteVectors');
+    expect(actions.filter((action) => action.startsWith('s3vectors:'))).toEqual([
+      's3vectors:DeleteVectors',
+    ]);
+    // 原本の削除はドキュメントバケットのgrantReadWriteに含まれる
+    expect(actions).toContain('s3:DeleteObject*');
   });
 
   test('SSM SecureStringの読み取り権限が付与される', () => {

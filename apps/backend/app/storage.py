@@ -28,6 +28,10 @@ class DocumentStorage:
             "put_object", Params=params, ExpiresIn=UPLOAD_URL_EXPIRES_IN
         )
 
+    def delete_object(self, key: str) -> None:
+        """存在しないキーを指定してもS3はエラーを返さないため、削除の再実行は安全に行える。"""
+        self._client.delete_object(Bucket=self._bucket_name, Key=key)
+
     def presign_get(self, key: str) -> str:
         return self._client.generate_presigned_url(
             "get_object",

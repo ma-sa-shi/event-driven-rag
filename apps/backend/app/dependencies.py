@@ -10,6 +10,7 @@ from app.repositories.documents import DocumentRepository
 from app.repositories.users import UserRepository
 from app.settings import Settings, get_settings
 from app.storage import DocumentStorage
+from app.vectors import VectorIndex
 
 
 def get_document_repository(
@@ -34,6 +35,12 @@ def get_document_storage(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> DocumentStorage:
     return DocumentStorage(settings.documents_bucket_name)
+
+
+def get_vector_index(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> VectorIndex:
+    return VectorIndex(settings.vector_index_arn)
 
 
 def get_ingest_queue(

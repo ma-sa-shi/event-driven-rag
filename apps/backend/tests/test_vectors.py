@@ -1,6 +1,6 @@
 import pytest
 
-from app.ingest.vectors import MAX_VECTORS_PER_REQUEST, VectorIndex, vector_key
+from app.vectors import MAX_VECTORS_PER_REQUEST, VectorIndex, vector_key
 
 INDEX_ARN = (
     "arn:aws:s3vectors:ap-northeast-1:123456789012:bucket/vectors/index/documents"
