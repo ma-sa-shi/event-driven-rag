@@ -50,7 +50,7 @@ CI/CDはGitHub Actionsで構成し、AWSへの認証はOIDCで行い、長期ア
 
 ## 設計上の判断(ADR)
 
-主要な判断は次のとおり。全14件は[docs/adr/](./docs/adr/)にある。
+主要な判断は次のとおり。全15件は[docs/adr/](./docs/adr/)にある。
 
 | ADR | 判断と理由 |
 |---|---|
