@@ -13,6 +13,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 from pydantic import ConfigDict, Field
 
+from app.normalization import normalize_for_embedding
+
 
 class S3VectorsRetriever(BaseRetriever):
     """クエリ文字列をベクトル化し、S3 Vectorsインデックスを検索するRetriever。
@@ -39,8 +41,8 @@ class S3VectorsRetriever(BaseRetriever):
     async def _aget_relevant_documents(
         self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun
     ) -> list[Document]:
-        # 検索クエリをベクトルに変換
-        vector = await self.embeddings.aembed_query(query)
+        # 取込側と同じ正規化を通してからベクトルに変換する(app/normalization.py)
+        vector = await self.embeddings.aembed_query(normalize_for_embedding(query))
         # boto3は同期APIの為、別スレッドで実行する
         response = await asyncio.to_thread(
             self.client.query_vectors,
