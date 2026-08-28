@@ -15,6 +15,7 @@ from app.ingest.chunking import split_text
 from app.ingest.embeddings import CohereEmbedder
 from app.ingest.extract import extract_text
 from app.logger import logger
+from app.normalization import normalize_for_embedding
 from app.repositories.documents import DocumentRepository
 from app.settings import get_settings
 from app.ssm import get_parameter
@@ -55,7 +56,10 @@ class IngestPipeline:
         chunks = split_text(text)
         logger.info("document text extracted", chunk_count=len(chunks))
 
-        vectors = self.embedder.embed_documents(chunks)
+        # 埋め込み入力だけを正規化し、metadataへは原文のチャンクを格納する
+        vectors = self.embedder.embed_documents(
+            [normalize_for_embedding(chunk) for chunk in chunks]
+        )
         # 登録前にchunkCountを引き上げ、途中で失敗しても削除APIが消し漏らさないようにする
         self.repository.reserve_chunk_count(user_id, document_id, len(chunks))
         self.vector_index.put_chunks(

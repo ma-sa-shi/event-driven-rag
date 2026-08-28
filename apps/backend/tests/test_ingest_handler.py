@@ -144,6 +144,26 @@ def test_registers_vectors_and_marks_document_ingested(
     assert int(document["chunkCount"]) == 1
 
 
+def test_embeds_normalized_text_and_stores_the_original(
+    aws, pipeline, embedder, vectors_client, lambda_context
+):
+    """埋め込み入力だけをNFKCで正規化し、metadataのtextは原文のまま残す。"""
+    put_document(
+        aws.table,
+        user_id=USER_ID,
+        document_id=DOCUMENT_ID,
+        filename=FILENAME,
+        status="processing",
+    )
+    upload(aws, "①ＲＡＧの設計".encode())
+
+    handler(build_event(), lambda_context)
+
+    assert embedder.texts == ["1RAGの設計"]
+    metadata = vectors_client.put_calls[0]["vectors"][0]["metadata"]
+    assert metadata["text"] == "①ＲＡＧの設計"
+
+
 def test_splits_long_document_into_multiple_vectors(
     aws, pipeline, vectors_client, lambda_context
 ):

@@ -62,6 +62,18 @@ async def test_query_vectors_receives_embedded_query_and_index_arn(embeddings):
     ]
 
 
+async def test_query_is_normalized_before_embedding(embeddings):
+    """取込側と同じNFKC正規化を通してから埋め込む(app/normalization.py)。"""
+    client = StubS3VectorsClient([])
+    retriever = S3VectorsRetriever(
+        embeddings=embeddings, index_arn=INDEX_ARN, client=client
+    )
+
+    await retriever.ainvoke("ＲＡＧ　の設計")
+
+    assert embeddings.queries == ["RAG の設計"]
+
+
 async def test_maps_vectors_to_documents_keyed_by_vector_key(embeddings):
     client = StubS3VectorsClient(
         [

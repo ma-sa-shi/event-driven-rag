@@ -220,6 +220,8 @@ SSEはLangGraphのnodeごとのstate更新を配信する。トークン単位�
 
 チャンクは1チャンク500文字、オーバーラップ50文字とし、段落、行、単語、文字の順に粗い区切りから分割する。Embeddingはchat-fnの検索側と同じCohere Embed 4（`embed-v4.0`、1536次元）を使い、取込側は`input_type`に`search_document`を指定する。
 
+Embeddingへ渡すテキストはNFKCで正規化し、全角英数や半角カナの表記ゆれを吸収する。同じ正規化はchat-fnの検索クエリにも適用し、取込側と検索側でベクトル空間を揃える。ただしS3 Vectorsへ格納する`text`は原文のまま残す。NFKCは①を1へ潰すため、回答の引用まで正規化を持ち込まない。
+
 HTTPリクエストを受けないFunctionのため、Lambda Web Adapterは利用せず通常のLambda Handlerで実装する。chat-fnが利用するLangChain系ライブラリはイメージに含めないため、チャンク生成とEmbedding呼び出しはRAGパイプラインとコードを共有せず、ingest-fn側に独自実装を持つ。
 
 各チャンクのベクトルは`<documentId>#<チャンク番号>`をkeyとして登録する。取込に成功したドキュメントはチャンク数をDynamoDBへ保持し、再取込でチャンク数が減った場合は余剰のベクトルを削除する。
