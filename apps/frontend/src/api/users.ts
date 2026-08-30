@@ -16,6 +16,17 @@ export async function fetchUser(userId: string): Promise<UserProfile> {
   return res.data;
 }
 
+/** 当日分の利用状況。日付の境界はJSTで、バックエンドがリセットを担う。 */
+export interface UserQuota {
+  limit: number;
+  used: number;
+}
+
+export async function fetchUserQuota(userId: string): Promise<UserQuota> {
+  const res = await api.get<UserQuota>(`/users/${userId}/quota`);
+  return res.data;
+}
+
 export async function listUserChats(userId: string): Promise<ChatSummary[]> {
   const res = await api.get<ChatSummary[]>(`/users/${userId}/chats`);
   return res.data;

@@ -4,6 +4,7 @@ import { useAuth } from "react-oidc-context";
 import { Link } from "react-router-dom";
 import type { ChatCompletion } from "../api/chats";
 import { listChats, streamChat } from "../api/chats";
+import { fetchUserQuota } from "../api/users";
 import { ChatHistory } from "../components/ChatHistory";
 import { ChatProgress } from "../components/ChatProgress";
 import { GradeBadge } from "../components/GradeBadge";
@@ -33,6 +34,13 @@ export function Home() {
     queryFn: listChats,
   });
 
+  const userId = auth.user?.profile.sub;
+  const quotaQuery = useQuery({
+    queryKey: ["user", userId, "quota"],
+    queryFn: () => fetchUserQuota(userId!),
+    enabled: userId !== undefined,
+  });
+
   const chatMutation = useMutation({
     mutationFn: async (question: string) => {
       const controller = new AbortController();
@@ -52,6 +60,11 @@ export function Home() {
     // 完了したチャットが履歴一覧へ載るよう取り直す
     onSuccess: () =>
       void queryClient.invalidateQueries({ queryKey: CHATS_QUERY_KEY }),
+    // 上限超過で拒否された場合も残数の表示を合わせる為、成功・失敗を問わず取り直す
+    onSettled: () =>
+      void queryClient.invalidateQueries({
+        queryKey: ["user", userId, "quota"],
+      }),
     onError: (e) => {
       // 画面遷移による中断は利用者の操作なので、エラーとして見せない
       if (e instanceof Error && e.name === "AbortError") return;
@@ -89,6 +102,7 @@ export function Home() {
       <QuestionForm
         onSubmit={handleSubmit}
         isStreaming={chatMutation.isPending}
+        quota={quotaQuery.data}
       />
 
       {attempts.length > 0 && (
@@ -136,7 +150,7 @@ export function Home() {
         ) : (
           <ChatHistory
             chats={chatsQuery.data}
-            currentUserId={auth.user?.profile.sub}
+            currentUserId={userId}
             showOwner
           />
         ))}

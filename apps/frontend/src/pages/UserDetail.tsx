@@ -2,7 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { useParams } from "react-router-dom";
-import { fetchUser, listUserChats, listUserDocuments } from "../api/users";
+import {
+  fetchUser,
+  fetchUserQuota,
+  listUserChats,
+  listUserDocuments,
+} from "../api/users";
 import { ChatHistory } from "../components/ChatHistory";
 import { DocumentTable } from "../components/DocumentTable";
 import { isNotFound, toErrorMessage } from "../lib/errors";
@@ -27,6 +32,11 @@ export function UserDetail() {
   const userQuery = useQuery({
     queryKey: ["user", userId],
     queryFn: () => fetchUser(userId),
+  });
+  // 他人の画面では「残り」ではなく実績として見せる為、残数ではなく利用回数を表示する
+  const quotaQuery = useQuery({
+    queryKey: ["user", userId, "quota"],
+    queryFn: () => fetchUserQuota(userId),
   });
   const chatsQuery = useQuery({
     queryKey: ["user", userId, "chats"],
@@ -77,6 +87,12 @@ export function UserDetail() {
           <dl>
             <dt>メールアドレス</dt>
             <dd>{userQuery.data.email}</dd>
+            <dt>本日の利用回数</dt>
+            <dd>
+              {quotaQuery.data
+                ? `${quotaQuery.data.used} / ${quotaQuery.data.limit} 回`
+                : "—"}
+            </dd>
             <dt>登録日時</dt>
             <dd>
               <time dateTime={userQuery.data.createdAt}>
