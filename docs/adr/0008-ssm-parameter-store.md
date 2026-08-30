@@ -1,6 +1,6 @@
 # ADR-0008: APIキー管理にSSM Parameter Storeを採用
 
-- Status: Accepted
+- Status: Superseded by ADR-0016
 - Date: 2026-07-18
 
 ## Context
