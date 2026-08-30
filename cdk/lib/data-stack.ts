@@ -48,6 +48,8 @@ export class DataStack extends cdk.Stack {
       partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      // 日付ごとに積み上がるQuotaを自動で消す。他のエンティティはexpiresAtを持たず対象外
+      timeToLiveAttribute: "expiresAt",
       // 開発環境前提の設定。本番運用へ移行する際はRETAIN + 削除保護 + PITRへ切り替える
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });

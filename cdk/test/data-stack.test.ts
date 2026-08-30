@@ -12,6 +12,12 @@ beforeAll(() => {
 });
 
 describe('DynamoDB', () => {
+  test('Quotaの日次アイテムを自動削除するTTLが有効になっている', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TimeToLiveSpecification: { AttributeName: 'expiresAt', Enabled: true },
+    });
+  });
+
   test('PK/SKのシングルテーブルがオンデマンドで作成される', () => {
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       BillingMode: 'PAY_PER_REQUEST',

@@ -15,6 +15,9 @@ export const BEDROCK_ANSWER_MODEL = "jp.amazon.nova-2-lite-v1:0";
 export const BEDROCK_UTILITY_MODEL = "jp.amazon.nova-2-lite-v1:0";
 export const BEDROCK_EMBEDDING_MODEL = "cohere.embed-v4:0";
 export const BEDROCK_RERANK_MODEL = "cohere.rerank-v3-5:0";
+
+// 1ユーザーが1日に送れるチャット数。1チャット約$0.006の実測が根拠(ADR-0017)
+export const CHAT_DAILY_QUOTA = "20";
 // 第一候補のgpt-5.6-lunaはアカウントで未開放のため暫定の2モデルで動かす。
 // 開放後に環境変数だけで戻せるよう、lunaの権限も併せて付与しておく(ADR-0016)
 export const LUNA_INFERENCE_PROFILE = "global.openai.gpt-5.6-luna";
@@ -148,6 +151,7 @@ export class AppStack extends cdk.Stack {
         VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
         COGNITO_ISSUER: dataStack.userPool.userPoolProviderUrl,
         COGNITO_CLIENT_ID: dataStack.userPoolClient.userPoolClientId,
+        CHAT_DAILY_QUOTA,
         POWERTOOLS_SERVICE_NAME: "api",
         POWERTOOLS_LOG_LEVEL: "INFO",
         POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
@@ -185,6 +189,7 @@ export class AppStack extends cdk.Stack {
         BEDROCK_UTILITY_MODEL,
         BEDROCK_EMBEDDING_MODEL,
         BEDROCK_RERANK_MODEL,
+        CHAT_DAILY_QUOTA,
         // 統合のResponseTransferMode STREAMとセットで必要(片方のみではバッファリングされる)
         AWS_LWA_INVOKE_MODE: "response_stream",
         POWERTOOLS_SERVICE_NAME: "chat",
