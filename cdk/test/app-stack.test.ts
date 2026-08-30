@@ -2,9 +2,12 @@ import * as cdk from 'aws-cdk-lib/core';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import {
   AppStack,
-  COHERE_API_KEY_PARAMETER_NAME,
+  BEDROCK_ANSWER_MODEL,
+  BEDROCK_EMBEDDING_MODEL,
+  BEDROCK_RERANK_MODEL,
+  BEDROCK_UTILITY_MODEL,
+  LUNA_INFERENCE_PROFILE,
   METRICS_NAMESPACE,
-  OPENAI_API_KEY_PARAMETER_NAME,
 } from '../lib/app-stack';
 import { DataStack } from '../lib/data-stack';
 import { normalizeAssetHashes } from './helpers';
@@ -93,14 +96,16 @@ describe('Lambda', () => {
     expect(ingestFn.Properties.Environment.Variables).not.toHaveProperty('COGNITO_ISSUER');
   });
 
-  test('chat-fnは1024MB/300秒でストリーミングとSSMパラメータ名を設定する', () => {
+  test('chat-fnは1024MB/300秒でストリーミングとBedrockのモデルIDを設定する', () => {
     const [, fn] = findFunctionByServiceName('chat');
     expect(fn.Properties.MemorySize).toBe(1024);
     expect(fn.Properties.Timeout).toBe(300);
     const env = fn.Properties.Environment.Variables;
     expect(env.AWS_LWA_INVOKE_MODE).toBe('response_stream');
-    expect(env.OPENAI_API_KEY_PARAMETER_NAME).toBe(OPENAI_API_KEY_PARAMETER_NAME);
-    expect(env.COHERE_API_KEY_PARAMETER_NAME).toBe(COHERE_API_KEY_PARAMETER_NAME);
+    expect(env.BEDROCK_ANSWER_MODEL).toBe(BEDROCK_ANSWER_MODEL);
+    expect(env.BEDROCK_UTILITY_MODEL).toBe(BEDROCK_UTILITY_MODEL);
+    expect(env.BEDROCK_EMBEDDING_MODEL).toBe(BEDROCK_EMBEDDING_MODEL);
+    expect(env.BEDROCK_RERANK_MODEL).toBe(BEDROCK_RERANK_MODEL);
     expect(env).toHaveProperty('VECTOR_BUCKET_ARN');
     expect(env).toHaveProperty('VECTOR_INDEX_ARN');
   });
@@ -111,9 +116,9 @@ describe('Lambda', () => {
     expect(fn.Properties.Timeout).toBe(600);
     const env = fn.Properties.Environment.Variables;
     expect(env).not.toHaveProperty('AWS_LWA_INVOKE_MODE');
-    // Embeddingはchat-fnの検索側と同じCohereモデルを使うため、OpenAIキーは持たない
-    expect(env.COHERE_API_KEY_PARAMETER_NAME).toBe(COHERE_API_KEY_PARAMETER_NAME);
-    expect(env).not.toHaveProperty('OPENAI_API_KEY_PARAMETER_NAME');
+    // Embeddingはchat-fnの検索側と同じモデルを使う。LLMは呼ばない
+    expect(env.BEDROCK_EMBEDDING_MODEL).toBe(BEDROCK_EMBEDDING_MODEL);
+    expect(env).not.toHaveProperty('BEDROCK_ANSWER_MODEL');
     expect(env).toHaveProperty('DOCUMENTS_BUCKET_NAME');
     expect(env).toHaveProperty('VECTOR_INDEX_ARN');
   });
@@ -361,18 +366,57 @@ describe('IAM', () => {
     expect(actions).toContain('s3:DeleteObject*');
   });
 
-  test('SSM SecureStringの読み取り権限が付与される', () => {
+  test('APIキーのSSMパラメータは参照しない', () => {
     const statements = policyStatements().filter(
-      (s) => Array.isArray(s.Action) && s.Action.includes('ssm:GetParameter'),
+      (s) => JSON.stringify(s.Action).includes('ssm:'),
     );
-    // chat-fn(openai + cohere)とingest-fn(cohere)
-    expect(statements.length).toBeGreaterThanOrEqual(2);
-    expect(JSON.stringify(statements)).toContain(
-      `parameter${OPENAI_API_KEY_PARAMETER_NAME}`,
+    expect(statements).toEqual([]);
+  });
+
+  test('chat-fnにBedrockの推論権限が回答モデルとリランクへ付与される', () => {
+    const chatActions = actionsGrantedTo('chat');
+    // SSEはノード単位の更新を配信する為、トークンストリーミングの権限は持たない
+    expect(chatActions).not.toContain('bedrock:InvokeModelWithResponseStream');
+    const statement = policyStatements().find(
+      (s) =>
+        Array.isArray(s.Resource) &&
+        JSON.stringify(s.Resource).includes('inference-profile/'),
     );
-    expect(JSON.stringify(statements)).toContain(
-      `parameter${COHERE_API_KEY_PARAMETER_NAME}`,
+    expect(statement).toBeDefined();
+    expect(statement.Action).toBe('bedrock:InvokeModel');
+    const resources = JSON.stringify(statement.Resource);
+    // 推論プロファイル経由のモデルは、プロファイルと配下の基盤モデルの双方の許可が要る
+    expect(resources).toContain(`inference-profile/${BEDROCK_ANSWER_MODEL}`);
+    expect(resources).toContain(`inference-profile/${BEDROCK_UTILITY_MODEL}`);
+    expect(resources).toContain('arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0');
+    // 回答生成と補助に同じモデルを充てているため、ARNは重複しない
+    expect(new Set(statement.Resource).size).toBe(statement.Resource.length);
+    // gpt-5.6-luna開放後に環境変数だけで戻せるよう権限を残す
+    expect(resources).toContain(`inference-profile/${LUNA_INFERENCE_PROFILE}`);
+    expect(resources).toContain('arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-luna');
+    expect(resources).toContain(`foundation-model/${BEDROCK_EMBEDDING_MODEL}`);
+    expect(resources).toContain(`foundation-model/${BEDROCK_RERANK_MODEL}`);
+    expect(chatActions).toContain('bedrock:Rerank');
+  });
+
+  test('ingest-fnにはEmbeddingモデルの推論権限だけが付与される', () => {
+    const actions = actionsGrantedTo('ingest').filter((action: string) =>
+      action.startsWith('bedrock:'),
     );
+    expect(actions).toEqual(['bedrock:InvokeModel']);
+    const statement = policyStatements().find(
+      (s) =>
+        s.Action === 'bedrock:InvokeModel' && !Array.isArray(s.Resource),
+    );
+    expect(JSON.stringify(statement.Resource)).toContain(
+      `foundation-model/${BEDROCK_EMBEDDING_MODEL}`,
+    );
+  });
+
+  test('api-fnにはBedrockの権限が付与されない', () => {
+    expect(
+      actionsGrantedTo('api').filter((action: string) => action.startsWith('bedrock:')),
+    ).toEqual([]);
   });
 
   test('api-fnにSQS送信権限、ingest-fnにSQS消費権限が付与される', () => {
