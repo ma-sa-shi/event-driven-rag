@@ -83,7 +83,7 @@ export class DataStack extends cdk.Stack {
     this.vectorIndex = new s3vectors.CfnIndex(this, "VectorIndex", {
       vectorBucketArn: this.vectorBucket.attrVectorBucketArn,
       dataType: "float32",
-      // Cohere embed-v4.0の次元数
+      // Cohere Embed v4(cohere.embed-v4:0)の次元数
       // 作成後に変更できない為、埋め込みモデルを変えるときはインデックスを作り直す
       dimension: 1536,
       distanceMetric: "cosine",

@@ -63,7 +63,7 @@ RAGパイプラインは既存実装を移植し、本構成に合わせて補�
 
 採用技術
 
-- LLMはOpenAI API、EmbeddingはCohere API
+- LLM・Embedding・RerankはいずれもAmazon Bedrock経由で呼ぶ
 - ベクトル検索はS3 Vectors
 - データストアはDynamoDB
 - 認証はCognito
@@ -218,7 +218,7 @@ SSEはLangGraphのnodeごとのstate更新を配信する。トークン単位�
 
 対応ファイル形式はPDF、Markdown、txtとする。PDFのテキスト抽出にはpypdfを利用する。
 
-チャンクは1チャンク500文字、オーバーラップ50文字とし、段落、行、単語、文字の順に粗い区切りから分割する。Embeddingはchat-fnの検索側と同じCohere Embed 4（`embed-v4.0`、1536次元）を使い、取込側は`input_type`に`search_document`を指定する。
+チャンクは1チャンク500文字、オーバーラップ50文字とし、段落、行、単語、文字の順に粗い区切りから分割する。Embeddingはchat-fnの検索側と同じCohere Embed 4（`cohere.embed-v4:0`、1536次元）をBedrock経由で使い、取込側は`input_type`に`search_document`を指定する。
 
 Embeddingへ渡すテキストはNFKCで正規化し、全角英数や半角カナの表記ゆれを吸収する。同じ正規化はchat-fnの検索クエリにも適用し、取込側と検索側でベクトル空間を揃える。ただしS3 Vectorsへ格納する`text`は原文のまま残す。NFKCは①を1へ潰すため、回答の引用まで正規化を持ち込まない。
 
@@ -327,22 +327,28 @@ api-fnは3つのストアをこの順で消す。途中で失敗してもDynamoD
 
 パイプラインの処理フローを次に示す。
 
-![質問からMulti Query、ベクトル検索、RRF、Cohere Rerank、回答生成、自己評価、最大1回のリトライを経て回答に至るRAGパイプライン](./diagrams/RAGパイプライン.svg)
+![質問からMulti Query、ベクトル検索、RRF、Rerank、回答生成、自己評価、最大1回のリトライを経て回答に至るRAGパイプライン](./diagrams/RAGパイプライン.svg)
 
-質問からMulti Queryで複数の検索クエリを生成し、クエリごとにS3 Vectorsでベクトル検索を行う。検索結果はRRF（Reciprocal Rank Fusion）で統合し、上位ドキュメントをCohere Rerankで関連度順に絞り込んだうえでLLMが回答を生成する。生成結果は自己評価し、不十分であれば最大1回リトライする。
+質問からMulti Queryで複数の検索クエリを生成し、クエリごとにS3 Vectorsでベクトル検索を行う。検索結果はRRF（Reciprocal Rank Fusion）で統合し、上位ドキュメントをRerankで関連度順に絞り込んだうえでLLMが回答を生成する。生成結果は自己評価し、不十分であれば最大1回リトライする。
 
 ### 7.2 使用モデル
 
 使用するモデルは次のとおり。
 
-| 用途 | モデル |
-|------|--------|
-| 回答生成 | GPT-5.4 mini |
-| クエリ生成 / 自己評価 / 失敗分析 | GPT-5.4 nano |
-| Embedding | Cohere Embed 4 |
-| Rerank | Cohere Rerank 4 Fast |
+| 用途 | モデル | Bedrockのモデル/プロファイルID |
+|------|--------|------------------|
+| 回答生成 | Nova 2 Lite | `jp.amazon.nova-2-lite-v1:0` |
+| クエリ生成 / 自己評価 / 失敗分析 | Nova 2 Lite | `jp.amazon.nova-2-lite-v1:0` |
+| Embedding | Cohere Embed 4 | `cohere.embed-v4:0` |
+| Rerank | Cohere Rerank 3.5 | `cohere.rerank-v3-5:0` |
 
-回答生成モデルは、GPT-5.6 Lunaとの比較検討を継続中である。
+4チェーンとも同じモデルを使うが、回答生成と補助で設定は分けて持つ。回答生成だけを差し替えられるようにするためである。クエリ生成と自己評価は構造化出力を使うため、補助側にはJSON Schemaの件数制約を守るモデルを選ぶ。
+
+第一候補の回答生成モデルはGPT-5.6 Lunaだが、モデル契約を終えても全経路でaccess_deniedとなり呼び出せない。上表は解消されるまでの構成である(ADR-0016)。
+
+データの所在に要件はないが、採用したモデルは結果としていずれも国内で処理される。Cohereの2モデルはap-northeast-1のオンデマンド推論であり、Nova 2 Liteは東京と大阪だけを束ねるjpプロファイルを使う。
+
+オンデマンド推論のクォータはAWSの既定値がCohere Embed 4で毎分1,000リクエスト、Cohere Rerank 3.5で毎分250リクエストであるのに対し、現在のアカウントにはそれぞれ10と3が適用されている。1チャットはクエリ数だけEmbeddingを呼び、Rerankを1回呼ぶ。最大1回のリトライを含めるとそれぞれ倍になるため、この適用値では同時アクセスが重なるとスロットリングされる。
 
 ### 7.3 パラメータ
 
@@ -351,7 +357,7 @@ api-fnは3つのストアをこの順で消す。途中で失敗してもDynamoD
 - Multi Query: 3〜5クエリを生成する
 - Vector Search: クエリごとにk=5で、全ユーザーのドキュメントを横断検索する
 - RRF: k=60で統合し、上位20件を残す
-- Cohere Rerank: RRF上位20件から5件に絞る
+- Rerank: RRF上位20件から5件に絞る
 - Self Evaluation: useful / useless / hallucinationの3値とfeedbackを返す
 - Retry: 最大1回。上限到達時はfailure analysisを生成して終了する
 
@@ -527,11 +533,17 @@ API Gatewayはapi-fnとchat-fnの唯一の公開経路であり、CloudFrontの`
 
 オーソライザによる検証はトークンの正当性までであり、要求されたドキュメントやチャットが本人のものかという認可はapi-fnとchat-fnで判定する。バックエンドのJWT検証は残す。
 
-### 9.4 シークレット管理
+### 9.4 モデル呼び出しの認可
 
-OpenAIとCohereのAPIキーは、SSM Parameter StoreのSecureStringパラメータで管理する。値はLambdaの初回参照時に取得し、実行環境が再利用される間はキャッシュした値を用いる。
+推論はすべてBedrock経由で行うため、アプリケーションが保持するAPIキーはない。認可はLambdaの実行ロールに集約し、CDKが関数ごとに必要なモデルだけを許可する(ADR-0016)。
 
-パラメータ名は`/event-driven-rag/openai-api-key`と`/event-driven-rag/cohere-api-key`で、CloudFormationがSecureStringを作成できないため手動で作成する(手順は`cdk/README.md`)。CDKはLambdaへ読み取り権限を付与し、パラメータ名を環境変数で渡す。
+chat-fnには4モデルすべてへの`bedrock:InvokeModel`と、`bedrock:Rerank`を与える。ingest-fnにはEmbeddingモデルの`bedrock:InvokeModel`のみを与える。api-fnはモデルを呼ばないため権限を持たない。SSEはノード単位のstate更新を配信し、LLMのトークンストリーミングを使わないため、`bedrock:InvokeModelWithResponseStream`は付与しない。
+
+`bedrock:Rerank`だけはリソースを`*`とする。このアクションはリソースレベルの権限指定に対応していないためである。呼び出せるリランクモデルは`bedrock:InvokeModel`側で限定する。
+
+モデルのARNは、オンデマンドで呼ぶモデルは基盤モデルのARN、推論プロファイル経由で呼ぶモデルはプロファイルと配下の基盤モデルの双方を指定する。プロファイル経由でしか呼べないモデルは、双方を許可しないと呼び出しが拒否される。Cohereの2モデルは前者、Nova 2 Liteは後者にあたる。加えて、GPT-5.6 Lunaが利用可能になった時点で環境変数だけで差し替えられるよう、同モデルの権限も併せて付与している。
+
+推論プロファイルのうち、jpプロファイルは配下の基盤モデルが東京と大阪に限られる一方、globalプロファイルは要求を任意のリージョンへ振り分ける。振り分け先を列挙できないため、基盤モデル側の許可はリージョンを絞らずに与える。モデルアクセスの有効化はアカウントとリージョンごとの手動作業であり、手順は`cdk/README.md`に記載する。
 
 ## 10. 運用設計
 
@@ -563,7 +575,7 @@ chat-fnはLambda Handlerを持たないため、SSEを配信し終えた時点�
 
 #### トレース
 
-3つのLambdaとAPI Gatewayのステージでアクティブトレースを有効にし、X-Rayでリクエストの経路とレイテンシを追跡する。アプリ内のトレース処理はapi-fnとingest-fnで行い、DynamoDB・S3・SQS・S3 Vectorsへのboto3呼び出しとCohereへのHTTP呼び出しに加えて、リクエスト全体と取込処理の各段をサブセグメントとして記録する。さらにサブセグメントへはRequest IDをアノテーションとして付け、ログとトレースを相互に辿れるようにする。
+3つのLambdaとAPI Gatewayのステージでアクティブトレースを有効にし、X-Rayでリクエストの経路とレイテンシを追跡する。アプリ内のトレース処理はapi-fnとingest-fnで行い、DynamoDB・S3・SQS・S3 Vectors・BedrockへのAPI呼び出しに加えて、リクエスト全体と取込処理の各段をサブセグメントとして記録する。さらにサブセグメントへはRequest IDをアノテーションとして付け、ログとトレースを相互に辿れるようにする。
 
 ingest-fnは通常のLambda Handlerであり、X-Rayのコンテキストはランタイムから受け取る。一方、api-fnとchat-fnが利用するLambda Web Adapterは、X-Rayのトレースヘッダーをアプリへ転送しない。しかもランタイムが呼び出しごとに更新する環境変数は、アプリのプロセスからは参照できない。そのため、Lambda Web Adapterが転送するLambda contextに含まれるトレースIDからコンテキストを復元する。
 
@@ -627,7 +639,7 @@ Provisioned Concurrencyも利用しない。応答遅延が問題になった場
 
 モニタリングは無料枠に収まる範囲で構成する。カスタムメトリクスは7、アラームは1で、いずれも無料枠の10以内に収める。X-Rayのトレースは月10万件まで無料であるが、1チャットがAPI Gatewayへ3リクエストを発生させるため、月3万チャット程度でこの枠に達する。
 
-OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1チャットで最大8回のLLM呼び出しが発生するため、補助チェーンにはnano系モデルを使いコストを抑える。
+Bedrockの推論は上記とは別に従量課金となる。Self-RAGは1チャットで最大8回のLLM呼び出しが発生するため、単価の低いモデルを選んでコストを抑える。
 
 ## 12. 開発計画
 
@@ -649,7 +661,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0005: ベクトルDBにS3 Vectorsを採用](./adr/0005-s3-vectors.md)
 - [ADR-0006: 永続化先にDynamoDBを採用し、シングルテーブルで設計する](./adr/0006-dynamodb-single-table.md)
 - [ADR-0007: 署名付きURLによる直接アップロードと取込の分離](./adr/0007-upload-ingest-separation.md)
-- [ADR-0008: APIキー管理にSSM Parameter Storeを採用](./adr/0008-ssm-parameter-store.md)
+- [ADR-0008: APIキー管理にSSM Parameter Storeを採用](./adr/0008-ssm-parameter-store.md) — ADR-0016により失効
 - [ADR-0009: Lambda Function URLをCloudFront OACで保護しない](./adr/0009-function-url-no-oac.md) — ADR-0011により失効
 - [ADR-0010: トークンをlocalStorageへ保存する](./adr/0010-token-storage-localstorage.md)
 - [ADR-0011: api-fnとchat-fnの公開経路をAPI Gatewayへ移行する](./adr/0011-api-gateway-migration.md)
@@ -657,6 +669,7 @@ OpenAIとCohereのAPIは上記とは別に従量課金となる。Self-RAGは1�
 - [ADR-0013: 独自ドメインはサブドメインで公開し、DNSをお名前.comに置く](./adr/0013-custom-domain-subdomain-external-dns.md)
 - [ADR-0014: X-Rayのアプリ内トレース処理をapi-fnとingest-fnに限定する](./adr/0014-xray-app-instrumentation-scope.md)
 - [ADR-0015: ドキュメントを物理削除し、ベクトルはキーの再構成で消す](./adr/0015-document-hard-delete.md)
+- [ADR-0016: 推論の呼び出し経路をAmazon Bedrockへ統一する](./adr/0016-bedrock-inference.md)
 
 認証の詳細設計とコストの試算は次のドキュメントで管理する。
 

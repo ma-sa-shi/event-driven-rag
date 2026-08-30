@@ -7,15 +7,34 @@ import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
-import * as ssm from "aws-cdk-lib/aws-ssm";
 import { DataStack } from "./data-stack";
 
-// SecureStringはCloudFormationで作成できない為、パラメータ本体は手動作成する
+// 推論はすべてBedrock経由で行う(ADR-0016)。モデルアクセスの有効化は手動作業であり、
 // 手順はcdk/README.mdに記載
-// CDKはパラメータ名のみを参照して読み取り権限を付与し、
-// Lambdaには値ではなくパラメータ名を環境変数として渡す(ADR-0008)
-export const OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/openai-api-key";
-export const COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/cohere-api-key";
+export const BEDROCK_ANSWER_MODEL = "jp.amazon.nova-2-lite-v1:0";
+export const BEDROCK_UTILITY_MODEL = "jp.amazon.nova-2-lite-v1:0";
+export const BEDROCK_EMBEDDING_MODEL = "cohere.embed-v4:0";
+export const BEDROCK_RERANK_MODEL = "cohere.rerank-v3-5:0";
+// 第一候補のgpt-5.6-lunaはアカウントで未開放のため暫定の2モデルで動かす。
+// 開放後に環境変数だけで戻せるよう、lunaの権限も併せて付与しておく(ADR-0016)
+export const LUNA_INFERENCE_PROFILE = "global.openai.gpt-5.6-luna";
+
+// 推論プロファイル経由でしか呼べないモデルがある。IAMではプロファイルと、
+// その配下の基盤モデルの双方を許可しなければ呼び出しが拒否される
+const INFERENCE_PROFILE_PREFIXES = ["global.", "apac.", "jp.", "us.", "eu."];
+
+function modelArns(stack: cdk.Stack, modelId: string): string[] {
+  const prefix = INFERENCE_PROFILE_PREFIXES.find((p) => modelId.startsWith(p));
+  if (prefix === undefined) {
+    return [`arn:aws:bedrock:${stack.region}::foundation-model/${modelId}`];
+  }
+  const foundationModel = modelId.slice(prefix.length);
+  return [
+    `arn:aws:bedrock:${stack.region}:${stack.account}:inference-profile/${modelId}`,
+    // globalプロファイルは任意のリージョンへ振り分ける為、基盤モデル側はリージョンを絞れない
+    `arn:aws:bedrock:*::foundation-model/${foundationModel}`,
+  ];
+}
 
 // BUFFEREDの統合のタイムアウト上限は、サービスクォータ
 // `Maximum integration timeout in milliseconds`(L-E5AE38E3)で決まる。既定は29秒である。
@@ -102,18 +121,16 @@ export class AppStack extends cdk.Stack {
       platform: Platform.LINUX_ARM64,
     });
 
-    const openaiApiKeyParameter =
-      ssm.StringParameter.fromSecureStringParameterAttributes(
-        this,
-        "OpenaiApiKeyParameter",
-        { parameterName: OPENAI_API_KEY_PARAMETER_NAME },
-      );
-    const cohereApiKeyParameter =
-      ssm.StringParameter.fromSecureStringParameterAttributes(
-        this,
-        "CohereApiKeyParameter",
-        { parameterName: COHERE_API_KEY_PARAMETER_NAME },
-      );
+    // 回答生成と補助に同じモデルを充てているため重複する
+    const llmModelArns = [
+      ...new Set([
+        ...modelArns(this, BEDROCK_ANSWER_MODEL),
+        ...modelArns(this, BEDROCK_UTILITY_MODEL),
+        ...modelArns(this, LUNA_INFERENCE_PROFILE),
+      ]),
+    ];
+    const embeddingModelArn = `arn:aws:bedrock:${this.region}::foundation-model/${BEDROCK_EMBEDDING_MODEL}`;
+    const rerankModelArn = `arn:aws:bedrock:${this.region}::foundation-model/${BEDROCK_RERANK_MODEL}`;
 
     // --- REST API Lambda (api-fn) ---
     // 認証、一覧、presigned URL発行、取込開始のSQS送信
@@ -164,8 +181,10 @@ export class AppStack extends cdk.Stack {
         VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
         COGNITO_ISSUER: dataStack.userPool.userPoolProviderUrl,
         COGNITO_CLIENT_ID: dataStack.userPoolClient.userPoolClientId,
-        OPENAI_API_KEY_PARAMETER_NAME,
-        COHERE_API_KEY_PARAMETER_NAME,
+        BEDROCK_ANSWER_MODEL,
+        BEDROCK_UTILITY_MODEL,
+        BEDROCK_EMBEDDING_MODEL,
+        BEDROCK_RERANK_MODEL,
         // 統合のResponseTransferMode STREAMとセットで必要(片方のみではバッファリングされる)
         AWS_LWA_INVOKE_MODE: "response_stream",
         POWERTOOLS_SERVICE_NAME: "chat",
@@ -189,8 +208,18 @@ export class AppStack extends cdk.Stack {
         resources: [dataStack.vectorIndex.attrIndexArn],
       }),
     );
-    openaiApiKeyParameter.grantRead(this.chatFunction);
-    cohereApiKeyParameter.grantRead(this.chatFunction);
+    // SSEはノード単位のstate更新を配信する為、LLMのトークンストリーミングは使わない。
+    // InvokeModelWithResponseStreamは付与しない
+    this.chatFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [...llmModelArns, embeddingModelArn, rerankModelArn],
+      }),
+    );
+    // Rerankはモデルではなくアクション単位で許可する。実際に使えるモデルは上のInvokeModelで絞る
+    this.chatFunction.addToRolePolicy(
+      new iam.PolicyStatement({ actions: ["bedrock:Rerank"], resources: ["*"] }),
+    );
 
     // --- ドキュメント取込 Worker Lambda (ingest-fn) ---
     // テキスト抽出 → チャンク分割 → embedding → S3 Vectors登録(SQSトリガー)
@@ -209,7 +238,7 @@ export class AppStack extends cdk.Stack {
           DOCUMENTS_BUCKET_NAME: dataStack.documentsBucket.bucketName,
           VECTOR_BUCKET_ARN: dataStack.vectorBucket.attrVectorBucketArn,
           VECTOR_INDEX_ARN: dataStack.vectorIndex.attrIndexArn,
-          COHERE_API_KEY_PARAMETER_NAME,
+          BEDROCK_EMBEDDING_MODEL,
           POWERTOOLS_SERVICE_NAME: "ingest",
           POWERTOOLS_LOG_LEVEL: "INFO",
           POWERTOOLS_METRICS_NAMESPACE: METRICS_NAMESPACE,
@@ -235,7 +264,12 @@ export class AppStack extends cdk.Stack {
         resources: [dataStack.vectorIndex.attrIndexArn],
       }),
     );
-    cohereApiKeyParameter.grantRead(this.ingestFunction);
+    this.ingestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [embeddingModelArn],
+      }),
+    );
 
     // --- API Gateway ---
     // api-fnとchat-fnの唯一の公開経路。CloudFrontの`/api/*`のオリジンになる。
