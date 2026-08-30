@@ -6,6 +6,7 @@ import {
   BEDROCK_EMBEDDING_MODEL,
   BEDROCK_RERANK_MODEL,
   BEDROCK_UTILITY_MODEL,
+  CHAT_DAILY_QUOTA,
   LUNA_INFERENCE_PROFILE,
   METRICS_NAMESPACE,
 } from '../lib/app-stack';
@@ -108,6 +109,19 @@ describe('Lambda', () => {
     expect(env.BEDROCK_RERANK_MODEL).toBe(BEDROCK_RERANK_MODEL);
     expect(env).toHaveProperty('VECTOR_BUCKET_ARN');
     expect(env).toHaveProperty('VECTOR_INDEX_ARN');
+  });
+
+  test('利用回数の上限はchat-fn(消費)とapi-fn(参照)の両方へ渡す', () => {
+    for (const serviceName of ['chat', 'api']) {
+      const [, fn] = findFunctionByServiceName(serviceName);
+      expect(fn.Properties.Environment.Variables.CHAT_DAILY_QUOTA).toBe(
+        CHAT_DAILY_QUOTA,
+      );
+    }
+    const [, ingestFn] = findFunctionByServiceName('ingest');
+    expect(ingestFn.Properties.Environment.Variables).not.toHaveProperty(
+      'CHAT_DAILY_QUOTA',
+    );
   });
 
   test('ingest-fnは1024MB/600秒でWeb Adapter用環境変数を持たない', () => {

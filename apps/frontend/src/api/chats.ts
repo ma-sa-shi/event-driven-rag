@@ -98,6 +98,10 @@ export async function getChat(chatId: string): Promise<ChatDetail> {
 const INTERRUPTED_MESSAGE =
   "回答の生成が中断されました。もう一度お試しください。";
 
+/** 429のdetailを読めなかった場合にだけ使う。通常はサーバーの文言を表示する。 */
+const QUOTA_EXCEEDED_MESSAGE =
+  "本日の利用上限に達しました。日付が変わると再び送信できます。";
+
 /** POST + Authorizationヘッダーで購読する理由はADR-0012。
  * axiosは逐次読み出しに対応しない為ここだけfetchを使い、client.tsのインターセプタ相当を自前で書く。
  */
@@ -142,6 +146,10 @@ export async function streamChat(
     if (authMessage) {
       throw new Error(authMessage);
     }
+    // 上限超過は生成の失敗ではない為、「回答の生成に失敗しました」で包まずそのまま見せる
+    if (res.status === 429) {
+      throw new Error((await readDetail(res)) ?? QUOTA_EXCEEDED_MESSAGE);
+    }
     throw new Error(await toResponseMessage(res));
   }
   if (!res.body) {
@@ -167,14 +175,19 @@ export async function streamChat(
 }
 
 async function toResponseMessage(res: Response): Promise<string> {
-  const fallback = `回答の生成に失敗しました（HTTP ${res.status}）`;
+  const detail = await readDetail(res);
+  return detail === null
+    ? `回答の生成に失敗しました（HTTP ${res.status}）`
+    : `回答の生成に失敗しました（${detail}）`;
+}
+
+/** FastAPIのHTTPExceptionが返す{"detail": "..."}を取り出す。 */
+async function readDetail(res: Response): Promise<string | null> {
   try {
     const body: unknown = await res.json();
     const detail = (body as { detail?: unknown }).detail;
-    return typeof detail === "string"
-      ? `回答の生成に失敗しました（${detail}）`
-      : fallback;
+    return typeof detail === "string" ? detail : null;
   } catch {
-    return fallback;
+    return null;
   }
 }

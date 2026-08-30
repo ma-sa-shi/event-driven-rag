@@ -80,3 +80,31 @@
   font-size: 14px;
   color: var(--text);
 }
+
+/* エラーではなく制限の通知の為、.alertの赤ではなく進行中と同じ橙で出す */
+.question-exhausted {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--status-progress);
+  background: var(--surface);
+  border: 1px solid var(--status-progress);
+}
+
+.question-submit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.question-quota {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+
+  &.is-exhausted {
+    color: var(--status-progress);
+    font-weight: 600;
+  }
+}

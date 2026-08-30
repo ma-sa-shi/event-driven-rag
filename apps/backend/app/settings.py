@@ -18,6 +18,7 @@ class Settings:
     bedrock_utility_model: str
     bedrock_embedding_model: str
     bedrock_rerank_model: str
+    chat_daily_quota: int
 
 
 # キャッシュ化により、os.environの読み込みを1回だけにする
@@ -44,4 +45,6 @@ def get_settings() -> Settings:
         bedrock_rerank_model=os.environ.get(
             "BEDROCK_RERANK_MODEL", "cohere.rerank-v3-5:0"
         ),
+        # 1チャット約$0.006の実測を根拠に、1人1日20回を既定とする(ADR-0017)
+        chat_daily_quota=int(os.environ.get("CHAT_DAILY_QUOTA", "20")),
     )

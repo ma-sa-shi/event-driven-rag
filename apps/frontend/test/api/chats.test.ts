@@ -152,6 +152,24 @@ describe("streamChat", () => {
     ).rejects.toThrow("回答の生成に失敗しました（質問が長すぎます）");
   });
 
+  it("429は生成の失敗として包まず、サーバーの文言をそのまま投げる", async () => {
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          detail:
+            "本日の利用上限(20回)に達しました。日付が変わると再び送信できます。",
+        }),
+        { status: 429 },
+      ),
+    );
+
+    await expect(
+      streamChat("質問", () => {}, new AbortController().signal),
+    ).rejects.toThrow(
+      "本日の利用上限(20回)に達しました。日付が変わると再び送信できます。",
+    );
+  });
+
   it("detailのないエラーレスポンスはステータスを添える", async () => {
     stubFetch(new Response("Internal Server Error", { status: 500 }));
 
