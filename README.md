@@ -26,7 +26,7 @@
 
 アップロードと取込は分離している。ファイルはLambdaを経由せずS3へ直接PUTし、Embedding生成はユーザーが取込を実行したときにSQS経由で開始する。ドキュメントのステータスは`uploading → uploaded → processing → ingested | failed`と遷移する。
 
-回答生成はSelf-RAGで行う。Multi Query、ベクトル検索、RRFによる統合、Cohere Rerank、回答生成、自己評価、最大1回のリトライという流れをLangGraphで構成している。
+回答生成はSelf-RAGで行う。Multi Query、ベクトル検索、RRFによる統合、Rerank、回答生成、自己評価、最大1回のリトライという流れをLangGraphで構成している。
 
 ![RAGパイプライン](./docs/diagrams/RAGパイプライン.svg)
 
@@ -42,8 +42,8 @@ CI/CDはGitHub Actionsで構成し、AWSへの認証はOIDCで行い、長期ア
 |---|---|
 | フロントエンド | Vite / React 19 / TypeScript / React Router / TanStack Query / axios / oidc-client-ts |
 | バックエンド | Python 3.12 / FastAPI / LangGraph / LangChain / uv |
-| インフラ | AWS CDK(TypeScript) / Lambda(arm64・コンテナイメージ) / API Gateway / CloudFront / S3 / S3 Vectors / DynamoDB / SQS / Cognito / SSM Parameter Store / ECR |
-| モデル | OpenAI GPT-5.4 mini・nano / Cohere Embed 4 / Cohere Rerank 4 Fast |
+| インフラ | AWS CDK(TypeScript) / Lambda(arm64・コンテナイメージ) / API Gateway / CloudFront / S3 / S3 Vectors / DynamoDB / SQS / Cognito / Bedrock / ECR |
+| モデル | Amazon Bedrock経由でNova 2 Lite / Cohere Embed 4 / Cohere Rerank 3.5 |
 | 監視 | Lambda Powertools(Logger / Metrics / Tracer) / CloudWatch / X-Ray / SNS |
 | CI/CD | GitHub Actions(OIDC) |
 | テスト | Vitest + Testing Library / pytest + moto / Jest(CDKスナップショット) |
@@ -97,7 +97,7 @@ make test      # vitest + pytest
 
 テストはmotoでAWSのAPIを差し替えるため、認証情報のない環境でも実行できる。CDKのテストは`cd cdk && npm test`で実行する。
 
-デプロイの前提となるSSM SecureStringの手動作成やACM証明書の発行手順は[cdk/README.md](./cdk/README.md)にまとめている。
+デプロイの前提となるBedrockのモデルアクセス有効化やACM証明書の発行手順は[cdk/README.md](./cdk/README.md)にまとめている。
 
 ## リポジトリ構成
 
