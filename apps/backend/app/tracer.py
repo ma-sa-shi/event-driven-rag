@@ -5,7 +5,7 @@ Lambda外(ローカル開発・pytest)ではPowertoolsがX-Ray SDKごと無効�
 トレース処理は全てダミーのサブセグメントになり、外部への送信も起きない。
 
 patch_allは導入済みのライブラリを全て走査してコールドスタートを伸ばす為、対象を絞る。
-botocoreがDynamoDB / S3 / SQS / S3 Vectors / SSM、httpxがCohereのEmbedding呼び出しを覆う。
+外部への呼び出しはDynamoDB / S3 / SQS / S3 Vectors / Bedrockのみで、いずれもbotocoreが覆う。
 
 chat-fnではPOWERTOOLS_TRACE_DISABLEDによりTracerを無効化している。RAGパイプラインが
 検索を並行実行し、X-Ray SDKのスレッドローカルなコンテキストが壊れる為である(ADR-0014)。
@@ -20,7 +20,7 @@ from aws_lambda_powertools import Tracer
 # LambdaランタイムがX-Rayのトレースコンテキストを渡す環境変数。X-Ray SDKはここから親を組み立てる
 LAMBDA_TRACE_HEADER_KEY = "_X_AMZN_TRACE_ID"
 
-tracer = Tracer(patch_modules=("botocore", "httpx"))
+tracer = Tracer(patch_modules=("botocore",))
 
 
 def restore_trace_context(xray_trace_id: str | None) -> None:

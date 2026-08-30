@@ -1,15 +1,14 @@
 """Self-RAGを構成する4つのLCELチェーンの組み立て。
 
-APIキーはSSMから解決した値をコンストラクタ引数で渡す。
-import時にモデルを生成するとキーなしの環境(api-fnやテスト)でimportが失敗する為、
-必ずファクトリ経由で生成する。
+モデルの呼び出しはBedrockのConverse API経由で行う。import時にモデルを生成すると
+リージョン未設定の環境(api-fnやテスト)でimportが失敗する為、必ずファクトリ経由で生成する。
 """
 
 from dataclasses import dataclass
 
+from langchain_aws import ChatBedrockConverse
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
-from langchain_openai import ChatOpenAI
 
 from app.rag.prompts import (
     analyze_failure_prompt,
@@ -28,19 +27,15 @@ class RagChains:
     analyze_failure: Runnable
 
 
-def build_chains(*, api_key: str, answer_model: str, utility_model: str) -> RagChains:
+def build_chains(*, answer_model: str, utility_model: str) -> RagChains:
     """回答生成用と補助用の2モデルで4チェーンを組み立てる。
 
-    Args:
-        api_key: OpenAI APIキー(SSMから解決した値)
-        answer_model: 回答生成に使うモデル
-        utility_model: クエリ生成・評価・失敗分析に使う軽量モデル
-
-    Returns:
-        4つのチェーンをまとめたRagChains
+    utility_modelはクエリ生成・回答評価・失敗分析に使う。
     """
-    answer_llm = ChatOpenAI(model=answer_model, api_key=api_key)
-    utility_llm = ChatOpenAI(model=utility_model, api_key=api_key)
+    # SSEはトークンではなくノード単位のstate更新を配信する(app/rag/stream.py)ため、
+    # LLMのトークンストリーミングは使わない。明示しないと自動判定の警告が毎回出る
+    answer_llm = ChatBedrockConverse(model=answer_model, disable_streaming=True)
+    utility_llm = ChatBedrockConverse(model=utility_model, disable_streaming=True)
 
     return RagChains(
         generate_queries=(

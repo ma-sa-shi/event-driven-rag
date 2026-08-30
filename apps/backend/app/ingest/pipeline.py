@@ -2,7 +2,7 @@
 
 S3のファイルを読み、テキスト抽出 → チャンク分割 → Embedding生成 → S3 Vectors登録を行い、
 ドキュメントのステータスをingestedへ更新する。
-SSMからのAPIキー取得やクライアント生成のオーバーヘッドを避けるため、get_ingest_pipeline()はプロセス内でキャッシュする。
+クライアント生成のオーバーヘッドを避けるため、get_ingest_pipeline()はプロセス内でキャッシュする。
 """
 
 from dataclasses import dataclass
@@ -12,13 +12,12 @@ from typing import Any, Protocol
 import boto3
 
 from app.ingest.chunking import split_text
-from app.ingest.embeddings import CohereEmbedder
+from app.ingest.embeddings import BedrockEmbedder
 from app.ingest.extract import extract_text
 from app.logger import logger
 from app.normalization import normalize_for_embedding
 from app.repositories.documents import DocumentRepository
 from app.settings import get_settings
-from app.ssm import get_parameter
 from app.vectors import VectorIndex, vector_key
 
 # 取込完了時に許可する遷移元
@@ -108,10 +107,7 @@ def get_ingest_pipeline() -> IngestPipeline:
     return IngestPipeline(
         bucket_name=settings.documents_bucket_name,
         repository=DocumentRepository(settings.table_name),
-        embedder=CohereEmbedder(
-            api_key=get_parameter(settings.cohere_api_key_parameter_name),
-            model=settings.cohere_embedding_model,
-        ),
+        embedder=BedrockEmbedder(model=settings.bedrock_embedding_model),
         vector_index=VectorIndex(settings.vector_index_arn),
         s3_client=boto3.client("s3"),
     )

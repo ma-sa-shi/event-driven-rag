@@ -1,6 +1,6 @@
 """RAGパイプラインのgraphと依存コンポーネントの構築。
 
-AWS SSMからのAPIキー取得や各コンポーネントの初期化に伴うオーバーヘッドを防ぐ為、
+boto3クライアントの生成や各コンポーネントの初期化に伴うオーバーヘッドを防ぐ為、
 get_rag_runtime()は初回呼び出し時のみ実行し、プロセス内でキャッシュする。
 """
 
@@ -8,13 +8,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from langchain_cohere import CohereEmbeddings, CohereRerank
-
 from app.rag.chains import RagChains, build_chains
+from app.rag.embeddings import BedrockQueryEmbeddings
 from app.rag.graph import build_graph
+from app.rag.rerank import BedrockReranker
 from app.rag.retriever import S3VectorsRetriever
 from app.settings import get_settings
-from app.ssm import get_parameter
 
 # リランク後にLLMへ渡すドキュメント件数
 RERANK_TOP_N = 5
@@ -53,35 +52,20 @@ class RagRuntime:
 
 @lru_cache
 def get_rag_runtime() -> RagRuntime:
-    """RagRuntimeのインスタンスを取得する。
-
-    初回呼び出し時にSSMからAPIキーを解決して構築し、以降はlru_cacheの結果を返す。
-
-    Returns:
-        graph・chains・retriever・rerankerを保持するRagRuntime
-    """
+    """初回呼び出し時にRagRuntimeを構築し、以降はlru_cacheの結果を返す。"""
     settings = get_settings()
-    openai_api_key = get_parameter(settings.openai_api_key_parameter_name)
-    cohere_api_key = get_parameter(settings.cohere_api_key_parameter_name)
-
-    embeddings = CohereEmbeddings(
-        model=settings.cohere_embedding_model, cohere_api_key=cohere_api_key
-    )
     return RagRuntime(
         graph=build_graph(),
         chains=build_chains(
-            api_key=openai_api_key,
-            answer_model=settings.openai_answer_model,
-            utility_model=settings.openai_utility_model,
+            answer_model=settings.bedrock_answer_model,
+            utility_model=settings.bedrock_utility_model,
         ),
         retriever=S3VectorsRetriever(
-            embeddings=embeddings,
+            embeddings=BedrockQueryEmbeddings(model=settings.bedrock_embedding_model),
             index_arn=settings.vector_index_arn,
             top_k=RETRIEVER_TOP_K,
         ),
-        reranker=CohereRerank(
-            model=settings.cohere_rerank_model,
-            top_n=RERANK_TOP_N,
-            cohere_api_key=cohere_api_key,
+        reranker=BedrockReranker(
+            model=settings.bedrock_rerank_model, top_n=RERANK_TOP_N
         ),
     )
