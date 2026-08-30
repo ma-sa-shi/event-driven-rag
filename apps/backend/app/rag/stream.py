@@ -9,9 +9,10 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from itertools import zip_longest
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypedDict
 
 from aws_lambda_powertools.metrics import MetricUnit, single_metric
+from langchain_core.callbacks import UsageMetadataCallbackHandler
 from langchain_core.documents import Document
 
 from app.logger import logger
@@ -114,6 +115,35 @@ def persist(
         )
 
 
+class ChatUsage(TypedDict):
+    """1チャットで消費したBedrockの推論量。利用回数の上限値を決める根拠として記録する。"""
+
+    models: dict[str, dict[str, Any]]
+    embedding_calls: int
+    embedding_query_chars: int
+    rerank_calls: int
+
+
+def summarize_usage(
+    handler: UsageMetadataCallbackHandler, state: dict[str, Any]
+) -> ChatUsage:
+    """LLMのトークン数はコールバックから、EmbeddingとRerankの回数は最終stateから求める。
+
+    EmbeddingとRerankはLangChainのLLM呼び出しではない為、コールバックに現れない。
+    クエリ1件につきEmbeddingを1回、試行1回につきRerankを1回呼ぶという
+    retrieve_contexts_nodeの構造から、最終stateの積み上がりを数えて代用する。
+    """
+    queries_per_attempt = state.get("queries") or []
+    return ChatUsage(
+        models=dict(handler.usage_metadata),
+        embedding_calls=sum(len(queries) for queries in queries_per_attempt),
+        embedding_query_chars=sum(
+            len(query) for queries in queries_per_attempt for query in queries
+        ),
+        rerank_calls=len(state.get("documents") or []),
+    )
+
+
 def record_metrics(state: dict[str, Any]) -> None:
     """完走したチャット1件分のメトリクスを発行する。
 
@@ -151,6 +181,7 @@ async def generate_sse(
     """
     logger.info("chat stream started", chat_id=chat_id, question=question[:50])
 
+    usage_handler = UsageMetadataCallbackHandler()
     final_state: dict[str, Any] = {}
     try:
         async for mode, payload in runtime.graph.astream(
@@ -160,7 +191,11 @@ async def generate_sse(
                 "request_id": request_id,
                 "retry_count": 0,
             },
-            config=runtime.configurable(user_id=user_id, request_id=request_id),
+            config=runtime.configurable(
+                user_id=user_id,
+                request_id=request_id,
+                callbacks=[usage_handler],
+            ),
             stream_mode=["updates", "values"],
         ):
             if mode == "values":
@@ -194,6 +229,12 @@ async def generate_sse(
         return
 
     record_metrics(final_state)
+
+    logger.info(
+        "chat usage recorded",
+        chat_id=chat_id,
+        **summarize_usage(usage_handler, final_state),
+    )
 
     grades = final_state.get("grade") or []
     logger.info("chat stream finished", chat_id=chat_id)

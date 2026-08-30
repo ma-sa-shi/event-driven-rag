@@ -119,6 +119,7 @@ exports[`スナップショット 1`] = `
         },
         "Environment": {
           "Variables": {
+            "CHAT_DAILY_QUOTA": "20",
             "COGNITO_CLIENT_ID": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefUserPoolSpaClient6B560FFA03368753",
             },
@@ -336,6 +337,7 @@ exports[`スナップショット 1`] = `
             "BEDROCK_EMBEDDING_MODEL": "cohere.embed-v4:0",
             "BEDROCK_RERANK_MODEL": "cohere.rerank-v3-5:0",
             "BEDROCK_UTILITY_MODEL": "jp.amazon.nova-2-lite-v1:0",
+            "CHAT_DAILY_QUOTA": "20",
             "COGNITO_CLIENT_ID": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefUserPoolSpaClient6B560FFA03368753",
             },

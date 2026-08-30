@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
+from langchain_core.callbacks import BaseCallbackHandler
+
 from app.rag.chains import RagChains, build_chains
 from app.rag.embeddings import BedrockQueryEmbeddings
 from app.rag.graph import build_graph
@@ -29,17 +31,27 @@ class RagRuntime:
     retriever: Any
     reranker: Any
 
-    def configurable(self, *, user_id: str, request_id: str) -> dict:
+    def configurable(
+        self,
+        *,
+        user_id: str,
+        request_id: str,
+        callbacks: list[BaseCallbackHandler] | None = None,
+    ) -> dict:
         """各ノードへ依存コンポーネントとリクエスト情報を渡すconfigを組み立てる。
+
+        callbacksはconfigurableの外側に置く。LangChainはこの位置のcallbacksだけを
+        子のRunnableへ伝播させる為、4チェーン全ての呼び出しを1つのハンドラで拾える。
 
         Args:
             user_id: ユーザーID(JWTのsub)
             request_id: リクエストID
+            callbacks: グラフ全体へ伝播させるコールバック
 
         Returns:
             graph.astream()にそのまま渡せるconfig
         """
-        return {
+        config = {
             "configurable": {
                 "chains": self.chains,
                 "retriever": self.retriever,
@@ -48,6 +60,9 @@ class RagRuntime:
                 "request_id": request_id,
             }
         }
+        if callbacks:
+            config["callbacks"] = callbacks
+        return config
 
 
 @lru_cache

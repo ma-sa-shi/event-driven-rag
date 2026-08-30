@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.settings import get_settings
+from tests.factories import put_quota
 
 client = TestClient(app)
 
@@ -76,3 +78,36 @@ def test_unknown_user_returns_404(make_token, dynamodb_table):
         headers={"Authorization": f"Bearer {make_token()}"},
     )
     assert res.status_code == 404
+
+
+def get_quota(token: str | None, user_id: str):
+    headers = {} if token is None else {"Authorization": f"Bearer {token}"}
+    return client.get(f"/api/users/{user_id}/quota", headers=headers)
+
+
+def test_未使用のユーザーはused0を返す(make_token, dynamodb_table):
+    res = get_quota(make_token(), "user-abc")
+
+    assert res.status_code == 200
+    assert res.json() == {"limit": get_settings().chat_daily_quota, "used": 0}
+
+
+def test_他ユーザーの利用回数を取得できる(make_token, dynamodb_table):
+    put_quota(dynamodb_table, user_id="user-abc", used=3)
+
+    res = get_quota(make_token(sub="user-other"), "user-abc")
+
+    assert res.status_code == 200
+    assert res.json()["used"] == 3
+
+
+def test_前日の利用回数は当日分に数えない(make_token, dynamodb_table):
+    put_quota(dynamodb_table, user_id="user-abc", used=20, date="2020-01-01")
+
+    res = get_quota(make_token(), "user-abc")
+
+    assert res.json()["used"] == 0
+
+
+def test_利用回数の取得には認証が必要(dynamodb_table):
+    assert get_quota(None, "user-abc").status_code == 401

@@ -356,6 +356,10 @@ exports[`スナップショット 1`] = `
             "KeyType": "RANGE",
           },
         ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expiresAt",
+          "Enabled": true,
+        },
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Delete",
