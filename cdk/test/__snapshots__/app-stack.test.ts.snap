@@ -332,14 +332,16 @@ exports[`スナップショット 1`] = `
         "Environment": {
           "Variables": {
             "AWS_LWA_INVOKE_MODE": "response_stream",
+            "BEDROCK_ANSWER_MODEL": "jp.amazon.nova-2-lite-v1:0",
+            "BEDROCK_EMBEDDING_MODEL": "cohere.embed-v4:0",
+            "BEDROCK_RERANK_MODEL": "cohere.rerank-v3-5:0",
+            "BEDROCK_UTILITY_MODEL": "jp.amazon.nova-2-lite-v1:0",
             "COGNITO_CLIENT_ID": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefUserPoolSpaClient6B560FFA03368753",
             },
             "COGNITO_ISSUER": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputFnGetAttUserPool6BA7E5F2ProviderURL1DC61701",
             },
-            "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
-            "OPENAI_API_KEY_PARAMETER_NAME": "/event-driven-rag/openai-api-key",
             "POWERTOOLS_LOG_LEVEL": "INFO",
             "POWERTOOLS_METRICS_NAMESPACE": "EventDrivenRag",
             "POWERTOOLS_SERVICE_NAME": "chat",
@@ -479,62 +481,73 @@ exports[`スナップショット 1`] = `
               },
             },
             {
-              "Action": [
-                "ssm:DescribeParameters",
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:GetParameterHistory",
-              ],
+              "Action": "bedrock:InvokeModel",
               "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/event-driven-rag/openai-api-key",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:bedrock:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":inference-profile/jp.amazon.nova-2-lite-v1:0",
+                    ],
                   ],
-                ],
-              },
+                },
+                "arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0",
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:bedrock:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":inference-profile/global.openai.gpt-5.6-luna",
+                    ],
+                  ],
+                },
+                "arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-luna",
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:bedrock:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      "::foundation-model/cohere.embed-v4:0",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:bedrock:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      "::foundation-model/cohere.rerank-v3-5:0",
+                    ],
+                  ],
+                },
+              ],
             },
             {
-              "Action": [
-                "ssm:DescribeParameters",
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:GetParameterHistory",
-              ],
+              "Action": "bedrock:Rerank",
               "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/event-driven-rag/cohere-api-key",
-                  ],
-                ],
-              },
+              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",
@@ -580,7 +593,7 @@ exports[`スナップショット 1`] = `
         },
         "Environment": {
           "Variables": {
-            "COHERE_API_KEY_PARAMETER_NAME": "/event-driven-rag/cohere-api-key",
+            "BEDROCK_EMBEDDING_MODEL": "cohere.embed-v4:0",
             "DOCUMENTS_BUCKET_NAME": {
               "Fn::ImportValue": "TestDataStack:ExportsOutputRefDocumentsBucket9EC9DEB9131399C0",
             },
@@ -759,30 +772,17 @@ exports[`スナップショット 1`] = `
               },
             },
             {
-              "Action": [
-                "ssm:DescribeParameters",
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:GetParameterHistory",
-              ],
+              "Action": "bedrock:InvokeModel",
               "Effect": "Allow",
               "Resource": {
                 "Fn::Join": [
                   "",
                   [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ssm:",
+                    "arn:aws:bedrock:",
                     {
                       "Ref": "AWS::Region",
                     },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/event-driven-rag/cohere-api-key",
+                    "::foundation-model/cohere.embed-v4:0",
                   ],
                 ],
               },
