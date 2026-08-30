@@ -14,7 +14,6 @@ from app.ingest.pipeline import get_ingest_pipeline
 from app.metrics import metrics
 from app.rag.runtime import get_rag_runtime
 from app.settings import get_settings
-from app.ssm import get_parameter
 
 ISSUER = "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_test"
 CLIENT_ID = "test-client-id"
@@ -24,8 +23,6 @@ QUEUE_NAME = "test-ingest-queue"
 VECTOR_INDEX_ARN = (
     "arn:aws:s3vectors:ap-northeast-1:123456789012:bucket/test-vectors/index/test-index"
 )
-OPENAI_API_KEY_PARAMETER_NAME = "/event-driven-rag/test-openai-api-key"
-COHERE_API_KEY_PARAMETER_NAME = "/event-driven-rag/test-cohere-api-key"
 METRICS_NAMESPACE = "test-namespace"
 
 
@@ -74,8 +71,6 @@ def env(monkeypatch):
     # motoがQueue作成後に発行した本物のダミーURLで上書きする
     monkeypatch.setenv("INGEST_QUEUE_URL", "https://sqs.invalid/placeholder")
     monkeypatch.setenv("VECTOR_INDEX_ARN", VECTOR_INDEX_ARN)
-    monkeypatch.setenv("OPENAI_API_KEY_PARAMETER_NAME", OPENAI_API_KEY_PARAMETER_NAME)
-    monkeypatch.setenv("COHERE_API_KEY_PARAMETER_NAME", COHERE_API_KEY_PARAMETER_NAME)
     # 共有インスタンスは名前空間をimport時に解決し終えている為、環境変数だけでは届かない。
     # 環境変数の方は、呼び出しごとにproviderを作るsingle_metricが読む
     monkeypatch.setenv("POWERTOOLS_METRICS_NAMESPACE", METRICS_NAMESPACE)
@@ -94,7 +89,6 @@ def _clear_caches() -> None:
     # Metricsは単一インスタンスで、未フラッシュのメトリクスを保持し続ける
     metrics.clear_metrics()
     get_settings.cache_clear()
-    get_parameter.cache_clear()
     get_rag_runtime.cache_clear()
     get_ingest_pipeline.cache_clear()
 

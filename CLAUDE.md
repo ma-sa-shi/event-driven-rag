@@ -205,6 +205,14 @@ Check that:
 
 When Japanese is derived from English source material, review the Japanese on its own rather than sentence by sentence against the English source.
 
+## Issues and Plans
+
+`docs/issues/`, `docs/plans/`, and `docs/PRmessages/` hold gitignored local drafts — never commit them, and never cite these paths from a commit message, a PR body, or an issue. What counts is the issue or pull request on GitHub, and the code and the ADRs.
+
+- `docs/issues/NNN-slug.md` — the human-facing issue text, pasted into a GitHub Issue as is. It states what the problem is and what would count as solved. It does not prescribe an implementation.
+- `docs/plans/NNN-slug.md` — the design document to implement from, sharing its number with the issue. It fixes the approach, the scope of work, and the completion criteria.
+- `docs/PRmessages/<pr>-slug.md` — a draft pull request body. The body on GitHub is the one that counts; keep the draft in step with it or delete it.
+
 ## Notes
 
 - The diagrams in `README.md` and `docs/architecture.md` are SVGs exported from `docs/diagrams/blueprint.drawio`, one per page. Edit the drawio file, never the SVGs; the user re-exports them in draw.io.

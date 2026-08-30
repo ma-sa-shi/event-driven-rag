@@ -26,3 +26,13 @@ Thumbs.db
 # Claude Code
 .claude/settings.local.json
 .claude/skills/issue/
+.claude/skills/plan/
+
+# 起票前の下書き。GitHub上のIssueが正であり、リポジトリには残さない
+docs/issues/
+docs/plans/
+docs/PRmessages/
+
+# AWSサポートへの問い合わせ下書き。解決すれば不要になる一時的なメモ
+docs/aws-support-*.txt
+docs/PRmessages/

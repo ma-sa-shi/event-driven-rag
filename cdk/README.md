@@ -20,16 +20,23 @@ CertificateStack以外の4スタックはap-northeast-1へデプロイする。�
 npx cdk bootstrap aws://<AWSアカウントID>/ap-northeast-1
 ```
 
-### SSM SecureStringパラメータの手動作成(初回のみ)
+### Bedrockのモデルアクセス有効化(初回のみ)
 
-SecureStringはCloudFormationで作成できないため、AppStackのデプロイ前に手動で作成する(ADR-0008)。
+推論はすべてBedrock経由で行う(ADR-0016)。モデルアクセスの有効化はアカウントとリージョンごとの操作であり、AppStackのデプロイ前にap-northeast-1で次の3モデルを有効にする。Cohereのようなサードパーティモデルの有効化にはMarketplaceのサブスクライブ権限が要る。
+
+| 用途 | モデル/プロファイルID |
+| --- | --- |
+| 回答生成・クエリ生成・自己評価・失敗分析 | `jp.amazon.nova-2-lite-v1:0` |
+| Embedding | `cohere.embed-v4:0` |
+| Rerank | `cohere.rerank-v3-5:0` |
+
+有効化の状態は次のコマンドで確認できる。
 
 ```bash
-aws ssm put-parameter --name /event-driven-rag/openai-api-key --type SecureString --value 'sk-...'
-aws ssm put-parameter --name /event-driven-rag/cohere-api-key --type SecureString --value '...'
+aws bedrock list-foundation-models --region ap-northeast-1
 ```
 
-CDKはこのパラメータを名前参照してLambdaに読み取り権限を付与し、パラメータ名を環境変数(`OPENAI_API_KEY_PARAMETER_NAME` / `COHERE_API_KEY_PARAMETER_NAME`)で渡す。値はLambda起動時にアプリケーションが取得してキャッシュする。キーを更新するときは`put-parameter --overwrite`で値を書き換えたうえで、再デプロイなどによりLambdaの実行環境を入れ替える必要がある。
+CDKはLambdaの実行ロールへ関数ごとに必要なモデルの呼び出し権限だけを付与し、モデルIDを環境変数(`BEDROCK_ANSWER_MODEL`など)で渡す。APIキーは持たないため、キー更新のための再デプロイも不要である。
 
 ### Docker
 
