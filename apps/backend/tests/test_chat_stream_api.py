@@ -16,7 +16,9 @@ from app.rag.graph import build_graph
 from app.rag.runtime import RagRuntime, get_rag_runtime
 from app.rag.stream import generate_sse
 from app.repositories.chats import ChatRepository
+from app.settings import get_settings
 from tests.conftest import TABLE_NAME, emitted_metrics
+from tests.factories import put_quota
 from tests.rag.fakes import (
     FakeReranker,
     FakeRetriever,
@@ -247,8 +249,9 @@ def test_graph_failure_emits_error_event_and_persists_nothing(
     assert [name for name, _ in events] == ["error"]
     _, error = events[0]
     assert error["requestId"]
-    # 途中結果は保存しない
-    assert aws.table.scan()["Items"] == []
+    # 途中結果は保存しない。消費済みのQuotaは失敗しても戻さない為、残る
+    items = aws.table.scan()["Items"]
+    assert [item for item in items if not item["SK"].startswith("QUOTA#")] == []
 
 
 def test_emits_grade_and_retry_metrics_on_completion(
@@ -325,3 +328,28 @@ def test_rejects_invalid_question(make_token, aws, override_runtime, body):
     res = client.post("/api/chats/stream", json=body, headers=headers(make_token()))
 
     assert res.status_code == 422
+
+
+def test_上限に達したユーザーは429で拒否されグラフを実行しない(
+    make_token, aws, override_runtime
+):
+    """上限へ達した状態はusedの直接書き込みで作る。上限回数分のチャットは流さない。"""
+    chains = build_fake_chains()
+    override_runtime(make_runtime(chains=chains))
+    put_quota(aws.table, user_id="user-123", used=get_settings().chat_daily_quota)
+
+    res = post_stream(make_token)
+
+    assert res.status_code == 429
+    assert "本日の利用上限" in res.json()["detail"]
+    # Bedrockを呼ぶ前に止める
+    assert chains.generate_queries.calls == []
+
+
+def test_チャットの成功で当日の利用回数が1増える(make_token, aws, override_runtime):
+    override_runtime(make_runtime())
+
+    post_stream(make_token)
+
+    quota = client.get("/api/users/user-123/quota", headers=headers(make_token()))
+    assert quota.json()["used"] == 1

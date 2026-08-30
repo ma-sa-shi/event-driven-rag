@@ -2,9 +2,13 @@
 
 書き込みAPIがapi-fnにないエンティティ(Chat / Chat Messages)のシードと、
 任意のステータスを持つDocumentの準備に使う。キー構造はRepositoryと同一。
+
+Quotaは上限へ達した状態を作る為に使う。上限回数分のチャットを実際に流す必要はない。
 """
 
 from datetime import UTC, datetime
+
+from app.repositories.quota import JST
 
 
 def put_document(
@@ -90,6 +94,20 @@ def put_attempt(
         "grade": grade,
         "feedback": feedback,
         "failureAnalysis": failure_analysis,
+    }
+    table.put_item(Item=item)
+    return item
+
+
+def today_jst() -> str:
+    return datetime.now(JST).strftime("%Y-%m-%d")
+
+
+def put_quota(table, *, user_id: str, used: int, date: str | None = None) -> dict:
+    item = {
+        "PK": f"USER#{user_id}",
+        "SK": f"QUOTA#{date or today_jst()}",
+        "used": used,
     }
     table.put_item(Item=item)
     return item

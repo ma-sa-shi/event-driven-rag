@@ -7,6 +7,7 @@ from fastapi import Depends
 from app.ingest_queue import IngestQueue
 from app.repositories.chats import ChatRepository
 from app.repositories.documents import DocumentRepository
+from app.repositories.quota import QuotaRepository
 from app.repositories.users import UserRepository
 from app.settings import Settings, get_settings
 from app.storage import DocumentStorage
@@ -23,6 +24,12 @@ def get_chat_repository(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ChatRepository:
     return ChatRepository(settings.table_name)
+
+
+def get_quota_repository(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> QuotaRepository:
+    return QuotaRepository(settings.table_name, settings.chat_daily_quota)
 
 
 def get_user_repository(
