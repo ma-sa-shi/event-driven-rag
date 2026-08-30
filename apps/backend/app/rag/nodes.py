@@ -2,7 +2,7 @@
 
 chains, retriever, rerankerは`config["configurable"]`で受け取る。
 各ノード関数名はSSEイベントの識別子に利用され、変更するとフロントエンドやDynamoDBに影響する。
-テスト時は`config`にモックを注入するだけで、外部API(AWS/OpenAI/Cohere)への通信無しで検証できる。
+テスト時は`config`にモックを注入するだけで、AWSへの通信無しで検証できる。
 """
 
 from langchain_core.runnables import RunnableConfig
@@ -70,7 +70,7 @@ async def retrieve_contexts_node(state: GraphState, config: RunnableConfig) -> d
     # Reciprocal Rank Fusion (RRF) で検索結果を統合・スコアリング
     fused_docs = reciprocal_rank_fusion(raw_docs)
 
-    # Cohere Rerankで上位のドキュメントへ絞り込み
+    # Rerankで上位のドキュメントへ絞り込み
     selected_docs = await reranker.acompress_documents(fused_docs, state["question"])
 
     logger.info(

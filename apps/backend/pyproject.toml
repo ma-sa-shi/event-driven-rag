@@ -21,8 +21,7 @@ dependencies = [
 # chat-fn(Dockerfileのchatターゲット)専用。api-fn/ingest-fnのイメージには入れない。
 # ローカル開発とテストではRAGパイプラインを動かすため既定で入れる
 chat = [
-    "langchain-cohere>=0.6.0",
-    "langchain-openai>=1.4.1",
+    "langchain-aws>=1.7.0",
     "langgraph>=1.2.9",
 ]
 dev = [

@@ -17,11 +17,11 @@ from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
 
+# with_structured_outputは、この2クラスのdocstringをそのままツールの説明としてモデルへ送る。
+# 内部の識別子を書くと、モデルがそれをツール名と取り違えて応答が解釈できなくなる為、
+# ここにはモデルへ伝えたいことだけを書く
 class MultiQuery(BaseModel):
-    """LLMが生成する複数の検索クエリ。
-
-    generate_queries_nodeのwith_structured_outputで使う出力スキーマ。
-    """
+    """ベクトル検索へ渡す複数の検索クエリ。"""
 
     queries: list[str] = Field(
         ..., min_length=3, max_length=5, description="LLMが生成する検索クエリ"

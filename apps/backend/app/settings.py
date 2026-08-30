@@ -14,12 +14,10 @@ class Settings:
     documents_bucket_name: str
     ingest_queue_url: str
     vector_index_arn: str
-    openai_api_key_parameter_name: str
-    cohere_api_key_parameter_name: str
-    openai_answer_model: str
-    openai_utility_model: str
-    cohere_embedding_model: str
-    cohere_rerank_model: str
+    bedrock_answer_model: str
+    bedrock_utility_model: str
+    bedrock_embedding_model: str
+    bedrock_rerank_model: str
 
 
 # キャッシュ化により、os.environの読み込みを1回だけにする
@@ -32,14 +30,18 @@ def get_settings() -> Settings:
         documents_bucket_name=os.environ.get("DOCUMENTS_BUCKET_NAME", ""),
         ingest_queue_url=os.environ.get("INGEST_QUEUE_URL", ""),
         vector_index_arn=os.environ.get("VECTOR_INDEX_ARN", ""),
-        openai_api_key_parameter_name=os.environ.get(
-            "OPENAI_API_KEY_PARAMETER_NAME", ""
+        # 第一候補のgpt-5.6-lunaはアカウントで未開放のため、暫定でNova 2 Liteに統一する。
+        # 開放後は回答生成だけを環境変数でlunaへ戻せる(ADR-0016)
+        bedrock_answer_model=os.environ.get(
+            "BEDROCK_ANSWER_MODEL", "jp.amazon.nova-2-lite-v1:0"
         ),
-        cohere_api_key_parameter_name=os.environ.get(
-            "COHERE_API_KEY_PARAMETER_NAME", ""
+        bedrock_utility_model=os.environ.get(
+            "BEDROCK_UTILITY_MODEL", "jp.amazon.nova-2-lite-v1:0"
         ),
-        openai_answer_model=os.environ.get("OPENAI_ANSWER_MODEL", "gpt-5.4-mini"),
-        openai_utility_model=os.environ.get("OPENAI_UTILITY_MODEL", "gpt-5.4-nano"),
-        cohere_embedding_model=os.environ.get("COHERE_EMBEDDING_MODEL", "embed-v4.0"),
-        cohere_rerank_model=os.environ.get("COHERE_RERANK_MODEL", "rerank-v4.0-fast"),
+        bedrock_embedding_model=os.environ.get(
+            "BEDROCK_EMBEDDING_MODEL", "cohere.embed-v4:0"
+        ),
+        bedrock_rerank_model=os.environ.get(
+            "BEDROCK_RERANK_MODEL", "cohere.rerank-v3-5:0"
+        ),
     )

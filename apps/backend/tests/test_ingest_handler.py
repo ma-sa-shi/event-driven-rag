@@ -302,7 +302,7 @@ def test_marks_failed_when_embedding_api_fails(
     upload(aws, "本文".encode())
 
     def fail(texts):
-        raise RuntimeError("cohere is unavailable")
+        raise RuntimeError("bedrock is unavailable")
 
     monkeypatch.setattr(embedder, "embed_documents", fail)
 
