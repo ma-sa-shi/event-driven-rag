@@ -7,10 +7,12 @@ from app.auth import get_current_user_id
 from app.dependencies import (
     get_chat_repository,
     get_document_repository,
+    get_quota_repository,
     get_user_repository,
 )
 from app.repositories.chats import ChatRepository
 from app.repositories.documents import DocumentRepository
+from app.repositories.quota import QuotaRepository
 from app.repositories.users import UserRepository
 from app.schemas import ChatSummaryResponse, DocumentResponse
 
@@ -21,6 +23,11 @@ class UpsertProfileRequest(BaseModel):
     # 値はCognitoのIDトークンclaims由来のため形式検証はしない
     display_name: str = Field(alias="displayName", min_length=1)
     email: str = Field(min_length=1)
+
+
+class QuotaResponse(BaseModel):
+    limit: int
+    used: int
 
 
 class UserResponse(BaseModel):
@@ -52,6 +59,20 @@ def get_user(
     if profile is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
     return UserResponse.model_validate({**profile, "userId": user_id})
+
+
+@router.get("/{user_id}/quota")
+def get_user_quota(
+    user_id: str,
+    _caller_id: Annotated[str, Depends(get_current_user_id)],
+    repository: Annotated[QuotaRepository, Depends(get_quota_repository)],
+) -> QuotaResponse:
+    """指定ユーザーの本日の利用状況を返す。他ユーザーも取得できる。
+
+    プロフィールの有無は問わない。未使用のユーザーはused=0を返す。
+    """
+    quota = repository.get_status(user_id)
+    return QuotaResponse(limit=quota.limit, used=quota.used)
 
 
 @router.get("/{user_id}/documents")
