@@ -89,4 +89,22 @@ describe("ChatProgress", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("orphan.pdf")).toBeInTheDocument();
   });
+
+  it("チャンク本文は120文字を超えると省略記号を付けて切り詰める", () => {
+    const short = "短い本文";
+    const long = "あ".repeat(130);
+    const attempts: Attempt[] = [
+      {
+        documents: [
+          retrieved({ filename: "short.pdf", text: short }),
+          retrieved({ filename: "long.pdf", text: long }),
+        ],
+      },
+    ];
+
+    render(<ChatProgress attempts={attempts} isStreaming={false} />);
+
+    expect(screen.getByText(short)).toBeInTheDocument();
+    expect(screen.getByText(`${"あ".repeat(120)}…`)).toBeInTheDocument();
+  });
 });
