@@ -93,6 +93,12 @@
   }
 }
 
+.doc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .doc-open {
   font: inherit;
   padding: 0;
@@ -110,8 +116,15 @@
 .doc-score {
   font-family: var(--mono);
   font-size: 13px;
-  margin-left: 8px;
   opacity: 0.8;
+}
+
+.doc-excerpt {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.75;
+  word-break: break-word;
 }
 
 .answer-body {

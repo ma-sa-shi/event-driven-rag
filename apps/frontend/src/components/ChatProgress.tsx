@@ -34,6 +34,17 @@ const scoreFormatter = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 2,
 });
 
+// チャンクは500文字（apps/backend/app/ingest/chunking.py）あり全文は長すぎる為、
+// 同じファイル名のチャンクを見分けられる程度の長さだけ見せる
+const EXCERPT_LENGTH = 120;
+
+function excerpt(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length > EXCERPT_LENGTH
+    ? `${trimmed.slice(0, EXCERPT_LENGTH)}…`
+    : trimmed;
+}
+
 interface ChatProgressProps {
   attempts: Attempt[];
   isStreaming: boolean;
@@ -137,11 +148,16 @@ function renderDetail(attempt: Attempt, key: StepKey, options: DetailOptions) {
       <ul className="step-detail">
         {attempt.documents.map((document, index) => (
           <li key={index}>
-            {renderDocumentName(document, options.onOpenDocument)}
-            {document.score !== null && (
-              <span className="doc-score">
-                {scoreFormatter.format(document.score)}
-              </span>
+            <div className="doc-header">
+              {renderDocumentName(document, options.onOpenDocument)}
+              {document.score !== null && (
+                <span className="doc-score">
+                  {scoreFormatter.format(document.score)}
+                </span>
+              )}
+            </div>
+            {document.text && (
+              <p className="doc-excerpt">{excerpt(document.text)}</p>
             )}
           </li>
         ))}
