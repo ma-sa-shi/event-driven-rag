@@ -4,7 +4,7 @@
 
 ## デモ
 
-https://github.com/user-attachments/assets/56f11482-2021-4cf4-a797-dfd3518fe7d7
+https://github.com/user-attachments/assets/281f1c77-528e-4e81-9cb9-13ff9673abb9
 
 サインイン、ドキュメントのアップロードと取込、チャットでの質問、回答の根拠ドキュメントの確認、プロフィールでの履歴確認までの一連の流れ。
 
